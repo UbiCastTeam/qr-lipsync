@@ -53,9 +53,10 @@ class QrLipsyncAnalyzer():
         self._frame_number = 1
         self._qrcode_number = 0
 
-        self._qrcode_name_analysed = qrcode_name
+        self._expected_qrcode_name = qrcode_name
         self._custom_data_name = custom_data_name
         self._qrcode_names = list()
+        self._found_qrcode_names = list()
         self._frames_with_freq = list()
         self._all_audio_buff = list()
         self._delay_audio_video = list()
@@ -113,12 +114,12 @@ class QrLipsyncAnalyzer():
         if len(self._delay_audio_video) > 0:
             avg_value = sum(self._delay_audio_video) / len(self._delay_audio_video)
             if avg_value < 0:
-                string_avg_delay = "Avg delay between beep and qrcode : %.3f ms, video is late" % (abs(avg_value))
+                string_avg_delay = "Avg delay between beep and qrcode : %d ms, video is late" % (abs(avg_value*1000))
             else:
-                string_avg_delay = "Avg delay between beep and qrcode : %.3f ms, audio is late" % (abs(avg_value))
+                string_avg_delay = "Avg delay between beep and qrcode : %d ms, audio is late" % (abs(avg_value*1000))
             logger.info("%s" % string_avg_delay)
             self.write_line(string_avg_delay, self._fd_result_file)
-        string_max_delay = "Max delay between beep and qrcode : %.3f ms at %s s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay)
+        string_max_delay = "Max delay between beep and qrcode : %d ms at %s s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay)
         logger.info("%s" % string_max_delay)
         self.write_line(string_max_delay, self._fd_result_file)
         string_video_duration = "Video duration is %.3f sec" % (self._video_duration)
@@ -155,7 +156,9 @@ class QrLipsyncAnalyzer():
         qrcode_name = line['NAME']
         if qrcode_name not in self._qrcode_names:
             self._qrcode_names.append(qrcode_name)
-        if qrcode_name == self._qrcode_name_analysed:
+        if qrcode_name == self._expected_qrcode_name:
+            if qrcode_name not in self._found_qrcode_names:
+                self._found_qrcode_names.append(qrcode_name)
             self._video_timestamp = float(line['VIDEOTIMESTAMP'])/1000000000
             current_timestamp = float(line['TIMESTAMP'])/1000000000
             frame_number = line['BUFFERCOUNT']
@@ -264,18 +267,26 @@ class QrLipsyncAnalyzer():
         return -1
 
     def _clean_all_list(self):
+        if not self._found_qrcode_names:
+            logger.warning('No expected qrcode %s detected' % self._expected_qrcode_name)
+            for q in self._qrcode_names:
+                if q not in self._found_qrcode_names:
+                    logger.warning('Found unexpected qrcode name %s, you may want to run qr-lipsync-analyze.py with -q %s' % (q, q))
+            sys.exit(1)
+
+        logger.info('Reached the end of the media, cleaning')
         self._frames_with_freq.reverse()
         for one_frame in self._frames_with_freq:
             video_timestamp = one_frame['timestamp']
             freq_in_frame = one_frame['freq_audio']
-            string = "The frame number %s at %.3f with the frequency %sHz already found, this is the end of the media" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
+            string = "The frame number %s at %.3f with the frequency %sHz already found" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
             logger.debug("%s" % string)
             self.write_line(string, self._fd_result_file)
         # self._all_audio_buff.reverse()
         for one_audio_buf in self._all_audio_buff:
             freq_audio = one_audio_buf['freq_audio']
             audio_timestamp = one_audio_buf['timestamp']
-            string = "The audio beep at %.3f sec has no corresponding qrcode, this should be %sHz, this is the end of the media" % (audio_timestamp, freq_audio)
+            string = "No corresponding qrcode found for audio beep (%d Hz) at %.3fs" % (freq_audio, audio_timestamp)
             logger.info("%s" % string)
             self.write_line(string, self._fd_result_file)
 
