@@ -246,7 +246,7 @@ class QrLipsyncAnalyzer():
                     frame_number = self._frames_with_freq[index_video].get('frame_number')
                     if frame_number != self._qrcode_number:
                         if diff_timestamp < 1.0:
-                            if abs(diff_timestamp) > self._max_delay_audio_video:
+                            if abs(diff_timestamp) > abs(self._max_delay_audio_video):
                                 self._max_delay_audio_video = diff_timestamp
                                 self._timestamp_max_delay = one_frame.get("video_timestamp")
                             # if diff_timestamp * 1000.0 > self._offset_video:
