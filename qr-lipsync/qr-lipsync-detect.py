@@ -16,7 +16,6 @@ from gi.repository import Gst, GObject
 import easyevent
 from gstmanager import PipelineManager
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('timing_analyzer')
 
 
@@ -165,7 +164,7 @@ class QrLipsyncDetector(easyevent.User):
                     self._max_magnitude = max_value
                 if self._counter == 5 and (float(self._audio_timestamp) - float(self._audio_timestamp_saved)) / 1000000000.0 >= 0.9:
                     self._audio_timestamp_saved = self._audio_timestamp
-                    logger.info("timestamp : %s, index : %s, freq : %s, peak  :%s" % (self._audio_timestamp, self._magnitude_position, self._check_freq, self._max_magnitude))
+                    logger.info("timestamp : %s, index : %s, freq : %d, peak  :%.1f" % (self._audio_timestamp, self._magnitude_position, self._check_freq, self._max_magnitude))
                     string_result = '{"ELEMENTNAME": "%s", "TIMESTAMP": %s, "PEAK": %s, "FREQ": %s}' % (elt_name, self._audio_timestamp, self._max_magnitude, self._check_freq)
                     self.write_line(string_result)
 

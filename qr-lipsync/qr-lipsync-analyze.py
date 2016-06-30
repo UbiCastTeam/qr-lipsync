@@ -9,7 +9,6 @@ import sys
 import json
 from fractions import Fraction
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('qr-lipsync-analyze')
 
 
@@ -68,6 +67,7 @@ class QrLipsyncAnalyzer():
         sys.exit(0)
 
     def start(self):
+        logger.info('Analyzing data')
         fd_input_file = open(self._input_file, 'r')
         self._fd_result_file = open(self._result_file, 'w')
         self._fd_result_to_graph = open(self._result_to_graph, 'w')
@@ -251,7 +251,7 @@ class QrLipsyncAnalyzer():
                                 self._timestamp_max_delay = one_frame.get("video_timestamp")
                             # if diff_timestamp * 1000.0 > self._offset_video:
                             string = "The frame %s has a delay of %.3f sec. Audio timestamp is %.3f sec, video timestamp is %.3f sec" % (frame_number, diff_timestamp, audio_timestamp, one_frame.get("video_timestamp"))
-                            logger.info("%s" % string)
+                            logger.debug("%s" % string)
                             self.write_line(string, self._fd_result_file)
                             self.write_line("%s\t%s" % (audio_timestamp, diff_timestamp), self._fd_result_to_graph)
                             self._frames_with_freq.pop(index_video)
@@ -365,16 +365,19 @@ class QrLipsyncAnalyzer():
             dfile.flush()
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=getattr(logging, "DEBUG"),
-        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-        stream=sys.stderr
-    )
     parser = argparse.ArgumentParser(description='Process QrCode and spectrum data file generated with qr-lipsync-detect.py')
     parser.add_argument('input_file', help='filename of raw QrCode and spectrum data')
     parser.add_argument('-q', '--qrcode-name', help='name of qrcode pattern to look after', default='CAM1')
     parser.add_argument('-c', '--custom-data-name', help='name of custom data embedded in qrcode to extract', default='TICKFREQ')
+    parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
     options = parser.parse_args(sys.argv[1:])
+
+    level = "DEBUG" if options.verbosity else "INFO"
+    logging.basicConfig(
+        level=getattr(logging, level),
+        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+        stream=sys.stderr
+    )
 
     input_file = options.input_file
     if os.path.isfile(input_file):
