@@ -1,17 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Module to do event-driven programming very easily.
-@author: Damien Boucard
-@license: Gnu/LGPLv2
-@version: 1.0
-
-Module attributes:
-
- - dispatcher: accepted values:
-   'gobject' (asynchronous),
-   'callback' (synchronous).
-"""
 
 import logging
 logger = logging.getLogger('event')

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright 2014, Anthony Violo
 import logging
 import argparse
 import os
