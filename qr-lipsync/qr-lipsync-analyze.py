@@ -32,6 +32,7 @@ class QrLipsyncAnalyzer():
         self._nb_dupl_frame = 0
         self._nb_drop_frame = 0
         self._nb_frames_in_sec = 0
+        self._total_frames = 0
         self._total_drop_frames = 0
         self._total_dupl_frames = 0
         self._offset_video = 0
@@ -96,13 +97,13 @@ class QrLipsyncAnalyzer():
 
     # Complete report when parsing is over
     def show_summary(self, fd_input_file):
-        string_duplicated_frame = "Nb total duplicated frames : %s" % (self._total_dupl_frames)
+        string_duplicated_frame = "Nb total duplicated frames : %s (%.2f%%)" % (self._total_dupl_frames, 100*self._total_dupl_frames/self._total_frames)
         string_start = "---------------------------- Global report --------------------------"
         logger.info("%s" % string_start)
         self.write_line(string_start, self._fd_result_file)
         logger.info("%s" % string_duplicated_frame)
         self.write_line(string_duplicated_frame, self._fd_result_file)
-        string_dropped_frame = "Nb total dropped frame : %s" % (self._total_drop_frames)
+        string_dropped_frame = "Nb total dropped frame : %s (%.2f%%)" % (self._total_drop_frames, 100*self._total_drop_frames/self._total_frames)
         logger.info("%s" % string_dropped_frame)
         self.write_line(string_dropped_frame, self._fd_result_file)
         string_avg_framerate = "Avg framerate is %.3f" % (sum(self._avg_framerate) / len(self._avg_framerate))
@@ -332,6 +333,7 @@ class QrLipsyncAnalyzer():
     def parse_line(self, line):
         name = line.get('ELEMENTNAME')
         if name == 'qroverlay':
+            self._total_frames += 1
             data_in_one_frame = self.get_qrcode_data(line)
             if data_in_one_frame:
                 self._check_frame_number(data_in_one_frame)
