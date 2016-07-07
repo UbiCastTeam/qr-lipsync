@@ -212,7 +212,7 @@ class QrLipsyncDetector(easyevent.User):
 
 if __name__ == '__main__':
     logging.basicConfig(
-        level=getattr(logging, "DEBUG"),
+        level=getattr(logging, "INFO"),
         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
         stream=sys.stderr
     )
