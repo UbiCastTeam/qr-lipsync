@@ -120,7 +120,7 @@ class QrLipsyncAnalyzer():
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, audio is late" % (abs(avg_value*1000))
             logger.info("%s" % string_avg_delay)
             self.write_line(string_avg_delay, self._fd_result_file)
-        string_max_delay = "Max delay between beep and qrcode : %d ms at %s s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay)
+        string_max_delay = "Max delay between beep and qrcode : %d ms at %.3f s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay)
         logger.info("%s" % string_max_delay)
         self.write_line(string_max_delay, self._fd_result_file)
         string_video_duration = "Video duration is %.3f sec" % (self._video_duration)
