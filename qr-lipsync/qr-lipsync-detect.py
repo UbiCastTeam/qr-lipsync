@@ -80,7 +80,7 @@ class QrLipsyncDetector(easyevent.User):
         spectrum = "spectrum bands=%s name=spectrum interval=%s" % (self._bands, self._interval)
         progress = "progressreport update-freq=1"
         video_sink = "fakesink silent=false name=vfakesink"
-        return "{src} ! {demux} ! videoscale ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink} dec. ! queue name=audiodec ! audioconvert ! {spectrum} ! {audio_sink}".format(**locals())
+        return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink} dec. ! queue name=audiodec ! audioconvert ! {spectrum} ! {audio_sink}".format(**locals())
 
     def start(self):
         if not hasattr(self.pipeline, 'pipeline'):
