@@ -190,7 +190,12 @@ class QrLipsyncDetector(easyevent.User):
                 vjres['duration'] = json.loads(result)['format']['duration']
             cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate -of default=noprint_wrappers=1 -print_format json %s" % media_file
             result = subprocess.check_output(cmd.split(' '), universal_newlines=True)
-            ajres = json.loads(result)['streams'][0]
+            ajres = json.loads(result)['streams']
+            if ajres:
+                ajres = ajres[0]
+            else:
+                logger.error("No audio track found, exiting")
+                sys.exit(1)
             vjres['sample_rate'] = ajres['sample_rate']
             return vjres
         else:
