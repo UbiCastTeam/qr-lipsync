@@ -101,14 +101,14 @@ class QrLipsyncAnalyzer():
     def show_summary(self, fd_input_file):
         results_dict = {
             "duplicated_frames": self._total_dupl_frames,
-            "duplicated_frames_percent": 100 * self._total_dupl_frames / self._total_frames,
+            "duplicated_frames_percent": round(100 * self._total_dupl_frames / self._total_frames, 1),
             "dropped_frames": self._total_drop_frames,
-            "dropped_frames_percent": 100 * self._total_drop_frames / self._total_frames,
+            "dropped_frames_percent": round(100 * self._total_drop_frames / self._total_frames, 1),
             "total_frames": self._total_frames,
-            "avg_framerate": sum(self._avg_framerate) / len(self._avg_framerate),
-            "avg_real_framerate": sum(self._avg_real_framerate) / len(self._avg_real_framerate),
-            "avg_av_delay_ms": (sum(self._delay_audio_video) / len(self._delay_audio_video)) * 1000,
-            "max_delay_ms": self._max_delay_audio_video * 1000,
+            "avg_framerate": round(sum(self._avg_framerate) / len(self._avg_framerate), 1),
+            "avg_real_framerate": round(sum(self._avg_real_framerate) / len(self._avg_real_framerate), 1),
+            "avg_av_delay_ms": int((sum(self._delay_audio_video) / len(self._delay_audio_video)) * 1000),
+            "max_delay_ms": int(self._max_delay_audio_video * 1000),
             "max_delay_ts": self._timestamp_max_delay,
             "video_duration": self._video_duration,
             "audio_duration": self._audio_duration
