@@ -133,7 +133,8 @@ class QrLipsyncDetector(easyevent.User):
         timestamp = struct.get_value('timestamp')
         json_data = struct.get_value('symbol')
         #FIXME: qroverlay appends a trailing comma which makes the json invalid {"TIMESTAMP":33333333,"BUFFERCOUNT":2,"FRAMERATE":"30/1","NAME":"CAM1",}
-        qrcode = json.loads(json_data.replace(',}', '}'))
+        if json_data:
+            qrcode = json.loads(json_data.replace(',}', '}'))
         # Sometime plugin can not read QRcode information
         if len(json_data) > self._json_length:
             qrcode['ELEMENTNAME'] = elt_name
