@@ -292,6 +292,7 @@ class QrLipsyncAnalyzer():
             for q in self._qrcode_names:
                 if q not in self._found_qrcode_names:
                     logger.warning('Found unexpected qrcode name %s, you may want to run qr-lipsync-analyze.py with -q %s' % (q, q))
+            logger.error('Exiting with error')
             sys.exit(1)
 
         logger.info('Reached the end of the media, cleaning')

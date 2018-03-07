@@ -34,7 +34,7 @@ class QrLipsyncDetector(easyevent.User):
         easyevent.User.__init__(self)
         self.register_event("eos", "barcode", "spectrum")
         self.media_info = self.get_media_info(media_file)
-        self._samplerate = int(self.media_info['sample_rate'])
+        self._samplerate = int(self.media_info.get('sample_rate', 0))
         self._media_duration = float(self.media_info['duration'])
         self.mainloop = mainloop
         self._media_file = media_file
@@ -84,15 +84,21 @@ class QrLipsyncDetector(easyevent.User):
         spectrum = "spectrum bands=%s name=spectrum interval=%s" % (self._bands, self._interval)
         progress = "progressreport update-freq=1"
         video_sink = "fakesink silent=false name=vfakesink"
-        return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink} dec. ! queue name=audiodec ! audioconvert ! {spectrum} ! {audio_sink}".format(**locals())
+        if self._samplerate:
+            return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink} dec. ! queue name=audiodec ! audioconvert ! {spectrum} ! {audio_sink}".format(**locals())
+        else:
+            return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink}".format(**locals())
+
+
 
     def start(self):
         if not hasattr(self.pipeline, 'pipeline'):
             logger.error('Pipeline could not be parsed, exiting')
             self.exit()
-        audio_fakesink = self.pipeline.pipeline.get_by_name("afakesink")
-        self._audio_fakesink_pad = audio_fakesink.get_static_pad('sink')
-        self._id_prob_audio_sink = self._audio_fakesink_pad.add_probe(Gst.PadProbeType.BUFFER, self.on_audio_fakesink_buffer, None)
+        if self._samplerate:
+            audio_fakesink = self.pipeline.pipeline.get_by_name("afakesink")
+            self._audio_fakesink_pad = audio_fakesink.get_static_pad('sink')
+            self._id_prob_audio_sink = self._audio_fakesink_pad.add_probe(Gst.PadProbeType.BUFFER, self.on_audio_fakesink_buffer, None)
         video_fakesink = self.pipeline.pipeline.get_by_name("vfakesink")
         self._video_src_pad = video_fakesink.get_static_pad('sink')
         self._id_prob_video_sink = self._video_src_pad.add_probe(Gst.PadProbeType.BUFFER, self.on_video_fakesink_buffer, None)
@@ -180,7 +186,7 @@ class QrLipsyncDetector(easyevent.User):
             # python2
             from distutils.spawn import find_executable
             ffprobe = find_executable('ffprobe')
-        if ffprobe: 
+        if ffprobe:
             cmd = "ffprobe -v error -select_streams v -show_entries stream=width,height,avg_frame_rate,duration -of default=noprint_wrappers=1 -print_format json %s" % media_file
             result = subprocess.check_output(cmd.split(' '), universal_newlines=True)
             vjres = json.loads(result)['streams'][0]
@@ -193,10 +199,9 @@ class QrLipsyncDetector(easyevent.User):
             ajres = json.loads(result)['streams']
             if ajres:
                 ajres = ajres[0]
+                vjres['sample_rate'] = ajres['sample_rate']
             else:
-                logger.error("No audio track found, exiting")
-                sys.exit(1)
-            vjres['sample_rate'] = ajres['sample_rate']
+                logger.error("No audio track found, cannot detect sync")
             return vjres
         else:
             logger.error('ffprobe is required')
