@@ -147,7 +147,7 @@ if __name__ == '__main__':
     )
 
     # Name that will identify the qrcode
-    qrname = "cam1"
+    qrname = "cam4"
 
     settings = {
         "output_file": "%s-qrcode.qt" % qrname,
@@ -161,7 +161,7 @@ if __name__ == '__main__':
         "qr_pix_size": 4,
         "extra_data_name": "tickfreq",
         "freq_array": (240, 480, 720, 960, 1200, 1440, 1680, 1920, 2160, 2400, 2640, 2880, 3120, 3360, 3600, 3840, 4080, 4320, 4560, 4800, 5040, 5280, 5520, 5760, 6000, 6240, 6480, 6720, 6960, 7200, 7440, 7680, 7920, 8160, 8400, 8640, 8880, 9120, 9360, 9600, 9840, 10080),
-        "background": "blue",
+        "background": "checkers-1",
         "enable_textoverlay": True,
     }
 

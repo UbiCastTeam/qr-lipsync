@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+
+# We don't want to use hw accel since it seems to be messing with latency
+os.environ['LIBVA_DRIVER_NAME'] = 'fakedriver'
+
 import re
 import shutil
 import sys
@@ -11,7 +15,7 @@ import json
 from fractions import Fraction
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GObject 
+from gi.repository import Gst, GObject
 
 import easyevent
 from gstmanager import PipelineManager
