@@ -28,14 +28,16 @@ logger = logging.getLogger('Gstmanager')
 
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst 
+from gi.repository import GObject, Gst
 
 
 pipeline_desc = "videotestsrc ! xvimagesink"
 try:
     import easyevent
+    easyevent.dispatcher = 'gobject'
 except Exception:
     from . import event as easyevent
+    easyevent.dispatcher = 'gobject'
 
 
 class PipelineManager(easyevent.User):
@@ -251,18 +253,3 @@ class PipelineManager(easyevent.User):
                 hpart = '"{0}"'.format(part)
                 hstring = hstring.replace(part, hpart)
         return hstring
-
-if __name__ == '__main__':
-
-    import logging
-    import sys
-
-    logging.basicConfig(
-        level=getattr(logging, "DEBUG"),
-        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-        stream=sys.stderr
-    )
-
-    pipelinel = PipelineManager(pipeline_desc)
-    pipelinel.run()
-    GObject.mainloop().run()

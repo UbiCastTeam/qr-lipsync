@@ -15,9 +15,10 @@ import json
 from fractions import Fraction
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GObject
+from gi.repository import Gst, GLib
 
 import easyevent
+easyevent.dispatcher = 'gobject'
 from gstmanager import PipelineManager
 
 logger = logging.getLogger('timing_analyzer')
@@ -47,6 +48,8 @@ class QrLipsyncDetector(easyevent.User):
         self._magnitude_position = -1
         self._max_magnitude = 0
         self._counter = 0
+        self._qrcode_tickfreq_count = 0
+        self._tick_count = 0
         self._interval = 3000000
         self._start_time = 0
         self._end_time = 0
@@ -65,7 +68,7 @@ class QrLipsyncDetector(easyevent.User):
 
         self.pipeline_str = self.get_pipeline(self._media_file)
         logger.info(self.pipeline_str)
-        self.pipeline = PipelineManager((self.pipeline_str))
+        self.pipeline = PipelineManager(self.pipeline_str)
 
     def exit(self):
         self.pipeline.stop()
@@ -88,8 +91,6 @@ class QrLipsyncDetector(easyevent.User):
             return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink} dec. ! queue name=audiodec ! audioconvert ! {spectrum} ! {audio_sink}".format(**locals())
         else:
             return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink}".format(**locals())
-
-
 
     def start(self):
         if not hasattr(self.pipeline, 'pipeline'):
@@ -119,13 +120,13 @@ class QrLipsyncDetector(easyevent.User):
         return True
 
     def evt_eos(self, event):
-        logger.info("eos received")
+        logger.info("eos received, found %s qrcodes and %s ticks" % (self._qrcode_tickfreq_count, self._tick_count))
         self.unregister_event("sos", "eos", "barcode", "spectrum")
         # FIXME disconnect it before eos is applied in pipeline
         # self._disconnect_probes()
         self._end_time = time.time()
         processing_duration = self._end_time - self._start_time
-        fps = Fraction(self.media_info['avg_frame_rate'])*self._media_duration/processing_duration
+        fps = Fraction(self.media_info['avg_frame_rate']) * self._media_duration / processing_duration
         logger.info("Processing took %.2fs (%i fps)" % (processing_duration, fps))
         duration_string = '{"AUDIODURATION":%s,"VIDEODURATION":%s}' % (self._audio_duration, self._video_duration)
         self.write_line(duration_string)
@@ -145,7 +146,11 @@ class QrLipsyncDetector(easyevent.User):
         if len(json_data) > self._json_length:
             qrcode['ELEMENTNAME'] = elt_name
             qrcode['VIDEOTIMESTAMP'] = timestamp
-            self.write_line(json.dumps(qrcode))
+            if qrcode.get('TICKFREQ'):
+                logger.debug('qrcode found at timestamp %s, freq: %s' % (timestamp, qrcode['TICKFREQ']))
+                self._qrcode_tickfreq_count += 1
+            d = json.dumps(qrcode)
+            self.write_line(d)
         else:
             logger.warning("Could not get content of qrcode")
 
@@ -175,9 +180,15 @@ class QrLipsyncDetector(easyevent.User):
                     self._max_magnitude = max_value
                 if self._counter == 5 and (float(self._audio_timestamp) - float(self._audio_timestamp_saved)) / 1000000000.0 >= 0.9:
                     self._audio_timestamp_saved = self._audio_timestamp
-                    logger.info("timestamp : %s, index : %s, freq : %d, peak  :%.1f" % (self._audio_timestamp, self._magnitude_position, self._check_freq, self._max_magnitude))
-                    string_result = '{"ELEMENTNAME": "%s", "TIMESTAMP": %s, "PEAK": %s, "FREQ": %s}' % (elt_name, self._audio_timestamp, self._max_magnitude, self._check_freq)
-                    self.write_line(string_result)
+                    result = {
+                        "ELEMENTNAME": elt_name,
+                        "TIMESTAMP": self._audio_timestamp,
+                        "PEAK": self._max_magnitude,
+                        "FREQ": self._check_freq,
+                    }
+                    logger.debug("tick found at timestamp : %s, index : %s, freq : %d, peak  :%.1f" % (self._audio_timestamp, self._magnitude_position, self._check_freq, self._max_magnitude))
+                    self._tick_count += 1
+                    self.write_line(json.dumps(result))
 
     def get_media_info(self, media_file):
         try:
@@ -225,23 +236,32 @@ class QrLipsyncDetector(easyevent.User):
             self._result_file.write(line)
             self._result_file.flush()
 
+
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='Generate videos suitable for measuring lipsync with qrcodes',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument('input_file', help='filename of video to analyze')
+    parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
+    options = parser.parse_args()
+    verbosity = getattr(logging, "DEBUG" if options.verbosity else "INFO")
+
     logging.basicConfig(
-        level=getattr(logging, "INFO"),
+        level=verbosity,
         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
         stream=sys.stderr
     )
-    media_file = 'qrcode.qt'
-    if len(sys.argv) == 2:
-        media_file = sys.argv[1]
 
-    mainloop = GObject.MainLoop()
+    media_file = options.input_file
+    mainloop = GLib.MainLoop()
     if os.path.isfile(media_file):
         dirname = os.path.dirname(media_file)
         media_prefix = os.path.splitext(os.path.basename(media_file))[0]
         result_file = os.path.join(dirname, "%s_data.txt" % (media_prefix))
         d = QrLipsyncDetector(media_file, result_file, mainloop)
-        GObject.idle_add(d.start)
+        GLib.idle_add(d.start)
         try:
             mainloop.run()
         except KeyboardInterrupt:

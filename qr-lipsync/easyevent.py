@@ -4,6 +4,8 @@
 import logging
 logger = logging.getLogger('event')
 dispatcher = 'callback'
+import gi
+from gi.repository import GLib
 
 log_ignores = ["level"]
 
@@ -74,8 +76,7 @@ class Manager:
                     function = getattr(obj, fctname)
                     if callable(function):
                         if dispatcher == 'gobject':
-                            import gobject
-                            gobject.idle_add(function, event, priority=gobject.PRIORITY_HIGH)
+                            GLib.idle_add(function, event, priority=GLib.PRIORITY_HIGH)
                         elif dispatcher == 'callback':
                             function(event)
                         continue
@@ -86,8 +87,7 @@ class Manager:
                     function = getattr(obj, obj.event_default)
                     if callable(function):
                         if dispatcher == 'gobject':
-                            import gobject
-                            gobject.idle_add(function, event, priority=gobject.PRIORITY_HIGH)
+                            GLib.idle_add(function, event, priority=GLib.PRIORITY_HIGH)
                         elif dispatcher == 'callback':
                             function(event)
                         continue
@@ -178,8 +178,8 @@ class Launcher:
         @param content: Content to attach with the event (Optional).
         @type content: any
         """
-        if event_type not in log_ignores:
-            logger.debug('Launching event type %s from %s' %(event_type, self))
+        #if event_type not in log_ignores:
+            #logger.debug('Launching event type %s from %s' %(event_type, self))
         self.event_manager.dispatch_event(Event(event_type, self, content))
 
 
