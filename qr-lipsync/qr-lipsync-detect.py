@@ -41,10 +41,10 @@ class QrLipsyncDetector(easyevent.User):
         self._media_file = media_file
         self._result_filename = result_file
         self._result_file = open(result_file, 'w')
-        self._bands = 1024
+        self._bands_count = 1024
         self._check_freq = 0
-        self._audio_timestamp = -1
-        self._audio_timestamp_saved = -1
+        self._first_tick_timestamp = -1
+        self._first_tick_timestamp_saved = -1
         self._magnitude_position = -1
         self._max_magnitude = 0
         self._counter = 0
@@ -55,7 +55,7 @@ class QrLipsyncDetector(easyevent.User):
         self._end_time = 0
         self._json_length = 70
         self._threshold_db = -48.0
-        self._min_freq = 400
+        self._min_freq = 200
         self._audio_duration = 0
         self._video_duration = 0
 
@@ -67,7 +67,6 @@ class QrLipsyncDetector(easyevent.User):
         self.size = 0
 
         self.pipeline_str = self.get_pipeline(self._media_file)
-        logger.info(self.pipeline_str)
         self.pipeline = PipelineManager(self.pipeline_str)
 
     def exit(self):
@@ -84,7 +83,7 @@ class QrLipsyncDetector(easyevent.User):
         video_downscale_caps = "video/x-raw, format=(string)I420, width=(int)%s, height=(int)%s" % (downscaled_width, downscaling_height)
         qrcode_extract = "zbar name=qroverlay"
         audio_sink = "fakesink silent=false name=afakesink"
-        spectrum = "spectrum bands=%s name=spectrum interval=%s" % (self._bands, self._interval)
+        spectrum = "spectrum bands=%s name=spectrum interval=%s" % (self._bands_count, self._interval)
         progress = "progressreport update-freq=1"
         video_sink = "fakesink silent=false name=vfakesink"
         if self._samplerate:
@@ -162,31 +161,39 @@ class QrLipsyncDetector(easyevent.User):
         # https://bugzilla.gnome.org/show_bug.cgi?id=753754
         s = struct.to_string()
         magnitude = self.get_string_to_float_list(s)
-        magnitude.pop(0)
-        magnitude.pop(0)
+        # ignore lowest frequencies
+        ignore_n_lowest_bands = int(self._min_freq / (self._samplerate / self._bands_count))
+        for i in range(ignore_n_lowest_bands):
+            magnitude[i] = -60
+
         max_value = max(magnitude)
         if max_value > self._threshold_db:
-            index = magnitude.index(max_value)
-            nb_value = self._samplerate / 2.0 / self._bands
-            freq = (index - 1) * nb_value + nb_value / 2.0
+            band_index = magnitude.index(max_value)
+            # self._samplerate / 2 is the nyquist frequency
+            band_width = (self._samplerate / 2) / self._bands_count
+            band_start = (band_index -1) * band_width
+            band_end = band_index * band_width
+            # frequency is the middle of the band with the maximum magnitude
+            freq = int((band_end - band_start) / 2 + band_start)
+
             if freq > self._min_freq:
                 if freq == self._check_freq:
                     self._counter += 1
                 else:
                     self._check_freq = freq
-                    self._audio_timestamp = timestamp
+                    self._first_tick_timestamp = timestamp
                     self._counter = 0
-                    self._magnitude_position = index
+                    self._magnitude_position = band_index
                     self._max_magnitude = max_value
-                if self._counter == 5 and (float(self._audio_timestamp) - float(self._audio_timestamp_saved)) / 1000000000.0 >= 0.9:
-                    self._audio_timestamp_saved = self._audio_timestamp
+                if self._counter == 15:
+                    self._first_tick_timestamp_saved = self._first_tick_timestamp
                     result = {
                         "ELEMENTNAME": elt_name,
-                        "TIMESTAMP": self._audio_timestamp,
+                        "TIMESTAMP": self._first_tick_timestamp,
                         "PEAK": self._max_magnitude,
                         "FREQ": self._check_freq,
                     }
-                    logger.debug("tick found at timestamp : %s, index : %s, freq : %d, peak  :%.1f" % (self._audio_timestamp, self._magnitude_position, self._check_freq, self._max_magnitude))
+                    logger.debug("tick found at timestamp : %s, band_index : %s, freq : %d, peak  :%.1f" % (self._first_tick_timestamp, self._magnitude_position, self._check_freq, self._max_magnitude))
                     self._tick_count += 1
                     self.write_line(json.dumps(result))
 
