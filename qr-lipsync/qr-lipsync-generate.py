@@ -139,7 +139,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
     parser.add_argument('-a', '--enable-audio', help='enable audio track', action="store_true", default=True)
     parser.add_argument('-t', '--enable-textoverlay', help='enable text overlay (shows timecode)', action="store_true", default=True)
-    parser.add_argument('-q', '--qrcode-name', help='name inserted into the qrcode pattern', default='CAM1')
+    parser.add_argument('-q', '--qrcode-name', help='name inserted into the qrcode pattern', default='cam1')
     parser.add_argument('-d', '--duration', help='duration in seconds', type=int, default=30)
     parser.add_argument('-r', '--framerate', help='framerate', type=int, default=60)
     parser.add_argument('-s', '--size', help='video size', type=str, default="640x360")
