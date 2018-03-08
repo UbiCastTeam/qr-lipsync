@@ -107,8 +107,8 @@ class QrLipsyncAnalyzer():
             "total_frames": self._total_frames,
             "avg_framerate": round(sum(self._avg_framerate) / len(self._avg_framerate), 1),
             "avg_real_framerate": round(sum(self._avg_real_framerate) / len(self._avg_real_framerate), 1),
-            "avg_av_delay_ms": int((sum(self._delay_audio_video) / len(self._delay_audio_video)) * 1000),
-            "max_delay_ms": int(self._max_delay_audio_video * 1000),
+            "avg_av_delay_ms": int((sum(self._delay_audio_video) / len(self._delay_audio_video)) * 1000) if len(self._delay_audio_video) > 0 else "unsupported",
+            "max_delay_ms": int(self._max_delay_audio_video * 1000) if self._max_delay_audio_video else "unsupported",
             "max_delay_ts": self._timestamp_max_delay,
             "video_duration": self._video_duration,
             "audio_duration": self._audio_duration
@@ -136,9 +136,10 @@ class QrLipsyncAnalyzer():
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, audio is late" % abs(avg_value)
             logger.info("%s" % string_avg_delay)
             self.write_line(string_avg_delay, self._fd_result_log)
-        string_max_delay = "Max delay between beep and qrcode : %d ms at %.3f s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay)
-        logger.info("%s" % string_max_delay)
-        self.write_line(string_max_delay, self._fd_result_log)
+        if self._max_delay_audio_video:
+            string_max_delay = "Max delay between beep and qrcode : %d ms at %.3f s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay)
+            logger.info("%s" % string_max_delay)
+            self.write_line(string_max_delay, self._fd_result_log)
         string_video_duration = "Video duration is %.3f sec" % (self._video_duration)
         logger.info("%s" % string_video_duration)
         self.write_line(string_video_duration, self._fd_result_log)
