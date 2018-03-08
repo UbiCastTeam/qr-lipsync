@@ -171,8 +171,8 @@ class QrLipsyncDetector(easyevent.User):
             band_index = magnitude.index(max_value)
             # self._samplerate / 2 is the nyquist frequency
             band_width = (self._samplerate / 2) / self._bands_count
-            band_start = (band_index -1) * band_width
-            band_end = band_index * band_width
+            band_start = band_index  * band_width
+            band_end = (band_index + 1) * band_width
             # frequency is the middle of the band with the maximum magnitude
             freq = int((band_end - band_start) / 2 + band_start)
 
