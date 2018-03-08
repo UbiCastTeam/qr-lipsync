@@ -26,7 +26,7 @@ class QrLipsyncAnalyzer():
         self._result_log = result_log
         self._result_to_graph = result_graph
         self._fd_result_log = -1
-        self._fd_result_to_graph = -1
+        self._fd_graph = -1
 
         self._ref_fps = 0
         self._real_fps = 0
@@ -73,8 +73,8 @@ class QrLipsyncAnalyzer():
         fd_input_file = open(self._input_file, 'r')
         self._fd_result_file = open(self._result_file, 'w')
         self._fd_result_log = open(self._result_log, 'w')
-        self._fd_result_to_graph = open(self._result_to_graph, 'w')
-        self.write_line("time\tdelay", self._fd_result_to_graph)
+        self._fd_graph = open(self._result_to_graph, 'w')
+        self.write_graphfile("time\tdelay")
         self._init_offset_video(fd_input_file)
         try:
             fd_input_file.seek(0)
@@ -113,45 +113,26 @@ class QrLipsyncAnalyzer():
             "video_duration": self._video_duration,
             "audio_duration": self._audio_duration
         }
-        string_duplicated_frame = "Nb total duplicated frames : %s (%.2f%%)" % (self._total_dupl_frames, results_dict['duplicated_frames_percent'])
-        string_start = "---------------------------- Global report --------------------------"
-        logger.info("%s" % string_start)
-        self.write_line(string_start, self._fd_result_log)
-        logger.info("%s" % string_duplicated_frame)
-        self.write_line(string_duplicated_frame, self._fd_result_log)
-        string_dropped_frame = "Nb total dropped frame : %s (%.2f%%)" % (self._total_drop_frames, results_dict['dropped_frames_percent'])
-        logger.info("%s" % string_dropped_frame)
-        self.write_line(string_dropped_frame, self._fd_result_log)
-        string_avg_framerate = "Avg framerate is %.3f" % results_dict['avg_framerate']
-        logger.info("%s" % string_avg_framerate)
-        self.write_line(string_avg_framerate, self._fd_result_log)
-        string_avg_real_framerate = "Avg real framerate is %.3f" % results_dict['avg_real_framerate']
-        logger.info("%s" % string_avg_real_framerate)
-        self.write_line(string_avg_real_framerate, self._fd_result_log)
+        self.write_logfile("---------------------------- Global report --------------------------")
+        self.write_logfile("Nb total duplicated frames : %s (%.2f%%)" % (self._total_dupl_frames, results_dict['duplicated_frames_percent']))
+        self.write_logfile("Nb total dropped frame : %s (%.2f%%)" % (self._total_drop_frames, results_dict['dropped_frames_percent']))
+        self.write_logfile("Avg framerate is %.3f" % results_dict['avg_framerate'])
+        self.write_logfile("Avg real framerate is %.3f" % results_dict['avg_real_framerate'])
         if len(self._delay_audio_video) > 0:
             avg_value = results_dict['avg_av_delay_ms']
             if avg_value < 0:
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, video is late" % abs(avg_value)
             else:
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, audio is late" % abs(avg_value)
-            logger.info("%s" % string_avg_delay)
-            self.write_line(string_avg_delay, self._fd_result_log)
+            self.write_logfile(string_avg_delay)
         if self._max_delay_audio_video:
-            string_max_delay = "Max delay between beep and qrcode : %d ms at %.3f s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay)
-            logger.info("%s" % string_max_delay)
-            self.write_line(string_max_delay, self._fd_result_log)
-        string_video_duration = "Video duration is %.3f sec" % (self._video_duration)
-        logger.info("%s" % string_video_duration)
-        self.write_line(string_video_duration, self._fd_result_log)
-        string_audio_duration = "Audio duration is %.3f sec" % (self._audio_duration)
-        logger.info("%s" % string_audio_duration)
-        self.write_line(string_audio_duration, self._fd_result_log)
-        string_end = "---------------------------------------------------------------------"
-        logger.info("%s" % string_end)
-        self.write_line(string_end, self._fd_result_log)
+            self.write_logfile("Max delay between beep and qrcode : %d ms at %.3f s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay))
+        self.write_logfile("Video duration is %.3f sec" % (self._video_duration))
+        self.write_logfile("Audio duration is %.3f sec" % (self._audio_duration))
+        self.write_logfile("---------------------------------------------------------------------")
         fd_input_file.close()
         self._fd_result_log.close()
-        self._fd_result_to_graph.close()
+        self._fd_graph.close()
         with open(self._result_file, "w") as f:
             json.dump(results_dict, f)
         logger.info('Wrote results as JSON into %s' % self._result_file)
@@ -274,7 +255,7 @@ class QrLipsyncAnalyzer():
                             string = "The frame %s has a delay of %.3f sec. Audio timestamp is %.3f sec, video timestamp is %.3f sec" % (frame_number, diff_timestamp, audio_timestamp, one_frame.get("video_timestamp"))
                             logger.debug("%s" % string)
                             self.write_line(string, self._fd_result_log)
-                            self.write_line("%s\t%s" % (audio_timestamp, diff_timestamp), self._fd_result_to_graph)
+                            self.write_line("%s\t%s" % (audio_timestamp, diff_timestamp), self._fd_graph)
                             self._frames_with_freq.pop(index_video)
                             self._all_audio_buff.pop(index_audio)
                             self._audio_timestamp = audio_timestamp
@@ -386,6 +367,13 @@ class QrLipsyncAnalyzer():
             line_content += '\n'
             dfile.write(line_content)
             dfile.flush()
+
+    def write_logfile(self, line_content):
+        logger.info(line_content)
+        self.write_line(line_content, self._fd_result_log)
+
+    def write_graphfile(self, line_content):
+        self.write_line(line_content, self._fd_graph)
 
 
 if __name__ == '__main__':
