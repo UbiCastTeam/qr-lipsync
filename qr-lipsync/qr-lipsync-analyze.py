@@ -107,8 +107,8 @@ class QrLipsyncAnalyzer():
             "total_frames": self._total_frames,
             "avg_framerate": round(sum(self._avg_framerate) / len(self._avg_framerate), 1),
             "avg_real_framerate": round(sum(self._avg_real_framerate) / len(self._avg_real_framerate), 1),
-            "avg_av_delay_ms": int((sum(self._delay_audio_video) / len(self._delay_audio_video)) * 1000) if len(self._delay_audio_video) > 0 else "unsupported",
-            "max_delay_ms": int(self._max_delay_audio_video * 1000) if self._max_delay_audio_video else "unsupported",
+            "avg_av_delay_ms": int((sum(self._delay_audio_video) / len(self._delay_audio_video)) * 1000) if len(self._delay_audio_video) > 0 else "could not measure",
+            "max_delay_ms": int(self._max_delay_audio_video * 1000) if self._max_delay_audio_video else "could not measure",
             "max_delay_ts": self._timestamp_max_delay,
             "video_duration": self._video_duration,
             "audio_duration": self._audio_duration
