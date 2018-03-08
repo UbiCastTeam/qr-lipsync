@@ -64,7 +64,7 @@ class QrLipsyncGenerator(easyevent.User):
         muxer = "%s name=mux" % s['muxer']
         sink = "filesink location=%s" % self.output_file
         pipeline = ' ! '.join([video_src, video_caps, qroverlay, textoverlay, video_converter, video_encoder, muxer, sink])
-        if s["enable_audio"]:
+        if not s["disable_audio"]:
             pipeline += " " + " ! ".join([audio_src, audio_caps, s['acodec'], 'mux.'])
         return pipeline
 
@@ -83,8 +83,12 @@ class QrLipsyncGenerator(easyevent.User):
         span_buffer = 1
         interval_buffers = self.settings["framerate"]
         pixel_size = s.get('qr_pix_size', 2)
-        data_name = s.get('extra_data_name', 'tickfreq')
-        qroverlay = 'qroverlay x=%s y=%s name=%s qrcode-error-correction=%s extra-data-span-buffers=%s extra-data-interval-buffers=%s extra-data-name=%s extra-data-array="%s" pixel-size=%s' % (x_position, y_position, plugin_name, error_correction, span_buffer, interval_buffers, data_name, extra_data_array, pixel_size)
+        if not self.settings['disable_audio']:
+            data_name = s.get('extra_data_name', 'tickfreq')
+            qroverlay = 'qroverlay x=%s y=%s name=%s qrcode-error-correction=%s extra-data-span-buffers=%s extra-data-interval-buffers=%s extra-data-name=%s extra-data-array="%s" pixel-size=%s' % (x_position, y_position, plugin_name, error_correction, span_buffer, interval_buffers, data_name, extra_data_array, pixel_size)
+        else:
+            qroverlay = 'qroverlay x=%s y=%s name=%s qrcode-error-correction=%s extra-data-span-buffers=%s pixel-size=%s' % (x_position, y_position, plugin_name, error_correction, span_buffer, pixel_size)
+
         return qroverlay
 
     def on_audio_src_buffer(self, pad, info, data):
@@ -114,9 +118,10 @@ class QrLipsyncGenerator(easyevent.User):
 
     def start(self):
         self.start_time = time.time()
-        audio_src_elt = self.pipeline.pipeline.get_by_name("audio_src")
-        self.audio_src_pad = audio_src_elt.get_static_pad('src')
-        self.id_prob_audio_src = self.audio_src_pad.add_probe(Gst.PadProbeType.BUFFER, self.on_audio_src_buffer, None)
+        if not self.settings['disable_audio']:
+            audio_src_elt = self.pipeline.pipeline.get_by_name("audio_src")
+            self.audio_src_pad = audio_src_elt.get_static_pad('src')
+            self.id_prob_audio_src = self.audio_src_pad.add_probe(Gst.PadProbeType.BUFFER, self.on_audio_src_buffer, None)
         self.pipeline.run()
 
     def evt_eos(self, event):
@@ -137,7 +142,7 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
-    parser.add_argument('-a', '--enable-audio', help='enable audio track', action="store_true", default=True)
+    parser.add_argument('-a', '--disable-audio', help='enable audio track', action="store_true", default=False)
     parser.add_argument('-t', '--enable-textoverlay', help='enable text overlay (shows timecode)', action="store_true", default=True)
     parser.add_argument('-q', '--qrcode-name', help='name inserted into the qrcode pattern', default='cam1')
     parser.add_argument('-d', '--duration', help='duration in seconds', type=int, default=30)
@@ -164,7 +169,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     settings = {
-        "enable_audio": options.enable_audio,
+        "disable_audio": options.disable_audio,
         "samplerate": 48000,
         "duration": options.duration,
         "delay_audio_freq_change": 1,
