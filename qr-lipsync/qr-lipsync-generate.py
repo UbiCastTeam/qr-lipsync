@@ -188,13 +188,15 @@ if __name__ == '__main__':
     video_format = options.format
     if video_format == "qt":
         settings["muxer"] = "qtmux"
-        settings["vcodec"] = "x264enc pass=5 quantizer=21 tune=zerolatency"
+        bitrate = 20000 if options.background == "snow" else 1000
+        settings["vcodec"] = "x264enc pass=0 bitrate=%s ! video/x-h264, profile=main" % bitrate
         settings["acodec"] = "identity"
         settings["fileext"] = ".qt"
-        settings["output_file"] = "%s-qrcode.qt" % qrname
+        settings["output_file"] = "%s-qrcode-%s-%s.qt" % (qrname, options.background, options.framerate)
     elif video_format == "mp4":
         settings["muxer"] = "mp4mux"
-        settings["vcodec"] = "x264enc pass=5 quantizer=21"
+        bitrate = 20000 if options.background == "snow" else 1000
+        settings["vcodec"] = "x264enc pass=0 bitrate=%s ! video/x-h264, profile=main" % bitrate
         settings["acodec"] = "fdkaacenc"
         settings["output_file"] = "%s-qrcode.mp4" % qrname
 
