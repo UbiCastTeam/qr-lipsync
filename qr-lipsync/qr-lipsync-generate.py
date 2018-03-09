@@ -146,7 +146,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--enable-textoverlay', help='enable text overlay (shows timecode)', action="store_true", default=True)
     parser.add_argument('-q', '--qrcode-name', help='name inserted into the qrcode pattern', default='cam1')
     parser.add_argument('-d', '--duration', help='duration in seconds', type=int, default=30)
-    parser.add_argument('-r', '--framerate', help='framerate', type=int, default=60)
+    parser.add_argument('-r', '--framerate', help='framerate', type=int, default=30)
     parser.add_argument('-s', '--size', help='video size', type=str, default="640x360")
     parser.add_argument('-f', '--format', help='video format: qt/h264/pcm (default) or mp4/h264/aac', choices=['mp4', 'qt'], default='qt')
     parser.add_argument('-b', '--background', help='background color', choices=['snow', 'black', 'white', 'red', 'green', 'blue', 'smpte', 'pinwheel'], default='blue')
@@ -189,14 +189,14 @@ if __name__ == '__main__':
     if video_format == "qt":
         settings["muxer"] = "qtmux"
         bitrate = 20000 if options.background == "snow" else 1000
-        settings["vcodec"] = "x264enc pass=0 bitrate=%s ! video/x-h264, profile=main" % bitrate
+        settings["vcodec"] = "x264enc pass=0 bitrate=%s tune=zerolatency ! video/x-h264, profile=main" % bitrate
         settings["acodec"] = "identity"
         settings["fileext"] = ".qt"
         settings["output_file"] = "%s-qrcode-%s-%s.qt" % (qrname, options.background, options.framerate)
     elif video_format == "mp4":
         settings["muxer"] = "mp4mux"
         bitrate = 20000 if options.background == "snow" else 1000
-        settings["vcodec"] = "x264enc pass=0 bitrate=%s ! video/x-h264, profile=main" % bitrate
+        settings["vcodec"] = "x264enc pass=0 bitrate=%s tune=zerolatency ! video/x-h264, profile=main" % bitrate
         settings["acodec"] = "fdkaacenc"
         settings["output_file"] = "%s-qrcode.mp4" % qrname
 
