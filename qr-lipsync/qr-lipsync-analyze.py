@@ -41,8 +41,6 @@ class QrLipsyncAnalyzer():
         self._gap_frame = 0
         self._max_delay_audio_video = 0
         self._timestamp_max_delay = 0
-        self._qrcode_frames_count = 0
-        self._qrcode_timestamps = list()
         self._matching_missing = 0
 
         self._got_first_frame_qrcode = False
@@ -89,6 +87,10 @@ class QrLipsyncAnalyzer():
             if len(line) > 0:
                 self.parse_line(line)
             line = self._read_andparse_line_in_file(fd_input_file)
+
+        if len(self._frames_with_freq) > 0 and len(self._all_audio_buff) > 0:
+            self.check_av_sync()
+
         self._clean_all_list()
         self.show_summary(fd_input_file)
 
@@ -146,7 +148,7 @@ class QrLipsyncAnalyzer():
             self.write_logfile(string_avg_delay)
         self.write_logfile("Video duration is %ss" % (self._video_duration))
         self.write_logfile("Audio duration is %ss" % (self._audio_duration))
-        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self._matching_missing, self._qrcode_frames_count))
+        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self._matching_missing, len(self._frames_with_freq)))
         self.write_logfile("---------------------------------------------------------------------")
         fd_input_file.close()
         self._fd_result_log.close()
@@ -172,30 +174,34 @@ class QrLipsyncAnalyzer():
 
     # Parsing data contained in Qrcode
     def get_qrcode_data(self, line):
-        data_in_one_frame = dict()
         qrcode_name = line['NAME']
         if qrcode_name not in self._qrcode_names:
             self._qrcode_names.append(qrcode_name)
         if qrcode_name == self._expected_qrcode_name:
             if qrcode_name not in self._found_qrcode_names:
                 self._found_qrcode_names.append(qrcode_name)
+
+            # actual buffer timestamp, in ns (gstreamer)
             self._video_timestamp = float(line['VIDEOTIMESTAMP']) / 1000000000
+
             current_timestamp = float(line['TIMESTAMP']) / 1000000000
             frame_number = line['BUFFERCOUNT']
             if current_timestamp is None or qrcode_name is None or frame_number is None:
                 logger.error("Invalid line (timestamp, name or frame number missing)")
             freq_audio = line.get(self._custom_data_name)
-            data_in_one_frame["timestamp"] = current_timestamp
-            if current_timestamp not in self._qrcode_timestamps:
-                self._qrcode_timestamps.append(current_timestamp)
-                self._qrcode_frames_count += 1
-            data_in_one_frame["frame_number"] = frame_number
-            data_in_one_frame["qrcode_name"] = qrcode_name
+
+            qrcode = {
+                "timestamp": current_timestamp,  # timestamp in qrcode
+                "frame_number": frame_number,
+                "qrcode_name": qrcode_name,
+            }
+
             if freq_audio is not None and len(freq_audio) > 0:
-                data_in_one_frame["video_timestamp"] = self._video_timestamp
-                data_in_one_frame["freq_audio"] = freq_audio
-                self._frames_with_freq.append(data_in_one_frame)
-        return data_in_one_frame
+                qrcode["video_timestamp"] = self._video_timestamp
+                qrcode["freq_audio"] = freq_audio
+                if qrcode not in self._frames_with_freq:
+                    self._frames_with_freq.append(qrcode)
+        return qrcode
 
     # Compare frame number theorical with frame number contained in Qrcode
     def _check_frame_number(self, data_in_one_frame):
@@ -307,44 +313,36 @@ class QrLipsyncAnalyzer():
             logger.debug("%s" % string)
             self.write_line(string, self._fd_result_log)
 
-    # Check if we have Qrcode without beep corresponding
-    # in this case we show a warning and delete it of the list
-    def _orphan_qrcode(self, freq_analyzed):
-        for index, one_frame in enumerate(self._frames_with_freq):
-            freq_in_frame = one_frame['freq_audio']
-            video_timestamp = one_frame['timestamp']
-            if video_timestamp + 1.0 < self._audio_timestamp:
-                if freq_analyzed == float(freq_in_frame):
-                    string = "The frame number %s at %s with the frequency %sHz already found, that means the beep with qrcode was duplicated" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
-                else:
-                    string = "The frame number %s at %s has no corresponding beep, this should be %sHz" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
-                logger.debug("%s" % string)
-                self._frames_with_freq.pop(index)
+    def check_av_sync(self):
+        logger.info("Checking AV sync")
+        # for each new qrcode found that contains frequency information
+        for f in self._frames_with_freq:
+            qrcode_freq = float(f['freq_audio'])
+            # actual buffer timestamp, not the one written in the qrcode
+            qrcode_ts = f['video_timestamp']
+            audio_candidates = self.filter_audio_samples(timestamp=qrcode_ts, width=5)
+            ts = self.find_beep(audio_candidates, qrcode_freq)
+            if ts:
+                # timestamps are in s
+                diff_ms = round((ts - qrcode_ts) * 1000)
+                logger.debug('Found beep at %ss, diff: %sms' % (ts, diff_ms))
+                self._delay_audio_video_ms.append(diff_ms)
             else:
-                logger.debug("Probably the audio beep has not happened yet or the audio video delay is upper than 1 secondes")
+                logger.info('Did not find beep of %s Hz around %ss' % (qrcode_freq, qrcode_ts))
                 self._matching_missing += 1
 
-    # Check if we have beep without Qrcode corresponding
-    # in this case we show a warning and delete it of the list
-    def _orphan_beep(self):
-        for index, one_audio_buf in enumerate(self._all_audio_buff):
-            freq_audio = one_audio_buf['freq_audio']
-            audio_timestamp = one_audio_buf['timestamp']
-            if audio_timestamp + 1.0 < self._video_timestamp:
-                audio_timestamp = one_audio_buf['timestamp']
-                string = "The audio beep at %s has no corresponding qrcode, this should be %sHz, frame number should be %s" % (one_audio_buf.get('timestamp'), freq_audio, int(round(audio_timestamp / int(self._offset_video))))
-                logger.debug("%s" % string)
-                self.write_line(string, self._fd_result_log)
-                self._all_audio_buff.pop(index)
-            else:
-                logger.debug("Probably the qrcode has not happened yet or the audio video delay is upper than 1 secondes")
+    def filter_audio_samples(self, timestamp, width):
+        start = timestamp - width / 2
+        end = timestamp + width / 2
+        # return audio buffers between timestamp - width and timestamp + width
+        samples = [a for a in self._all_audio_buff if (a["timestamp"] > start and a["timestamp"] < end)]
+        return samples
 
-    def _check_av_synchro(self):
-        freq_corresponding = self._get_corresponding_freq()
-        if freq_corresponding > 0 and len(self._frames_with_freq) > 0:
-            self._orphan_qrcode(freq_corresponding)
-        if freq_corresponding > 0 and len(self._all_audio_buff) > 0:
-            self._orphan_beep()
+    def find_beep(self, audio_samples, frequency):
+        threshold_hz = 50
+        for i, item in enumerate(audio_samples):
+            if abs(item['freq_audio'] - frequency) < threshold_hz:
+                return audio_samples[i]['timestamp']
 
     def parse_line(self, line):
         name = line.get('ELEMENTNAME')
@@ -358,15 +356,12 @@ class QrLipsyncAnalyzer():
             audio_data["timestamp"] = float(line['TIMESTAMP']) / 1000000000
             audio_data["peak_value"] = line['PEAK']
             audio_data["freq_audio"] = line['FREQ']
-            self._all_audio_buff.insert(0, audio_data)
+            self._all_audio_buff.append(audio_data)
         else:
             if line.get('AUDIODURATION'):
                 self._audio_duration = round(float(line['AUDIODURATION']) / 1000000000.0, 3)
             if line.get('VIDEODURATION'):
                 self._video_duration = round(float(line['VIDEODURATION']) / 1000000000.0, 3)
-
-        if len(self._frames_with_freq) > 0 and len(self._all_audio_buff) > 0:
-            self._check_av_synchro()
 
     def _read_andparse_line_in_file(self, fd_input_file):
         line = fd_input_file.readline()
