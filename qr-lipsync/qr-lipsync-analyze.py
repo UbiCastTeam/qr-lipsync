@@ -306,14 +306,6 @@ class QrLipsyncAnalyzer():
             string = "The frame number %s at %s with the frequency %sHz already found" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
             logger.debug("%s" % string)
             self.write_line(string, self._fd_result_log)
-        # self._all_audio_buff.reverse()
-        for one_audio_buf in self._all_audio_buff:
-            freq_audio = one_audio_buf['freq_audio']
-            audio_timestamp = one_audio_buf['timestamp']
-            string = "No corresponding qrcode found for audio beep (%d Hz) at %ss" % (freq_audio, audio_timestamp)
-            self._matching_missing += 1
-            logger.info("%s" % string)
-            self.write_line(string, self._fd_result_log)
 
     # Check if we have Qrcode without beep corresponding
     # in this case we show a warning and delete it of the list
@@ -327,10 +319,10 @@ class QrLipsyncAnalyzer():
                 else:
                     string = "The frame number %s at %s has no corresponding beep, this should be %sHz" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
                 logger.debug("%s" % string)
-
                 self._frames_with_freq.pop(index)
             else:
                 logger.debug("Probably the audio beep has not happened yet or the audio video delay is upper than 1 secondes")
+                self._matching_missing += 1
 
     # Check if we have beep without Qrcode corresponding
     # in this case we show a warning and delete it of the list
