@@ -41,6 +41,9 @@ class QrLipsyncAnalyzer():
         self._gap_frame = 0
         self._max_delay_audio_video = 0
         self._timestamp_max_delay = 0
+        self._qrcode_frames_count = 0
+        self._qrcode_timestamps = list()
+        self._matching_missing = 0
 
         self._got_first_frame_qrcode = False
         # 48000 hz / 1024 bands
@@ -61,7 +64,7 @@ class QrLipsyncAnalyzer():
         self._found_qrcode_names = list()
         self._frames_with_freq = list()
         self._all_audio_buff = list()
-        self._delay_audio_video = list()
+        self._delay_audio_video_ms = list()
         self._avg_real_framerate = list()
         self._avg_framerate = list()
 
@@ -114,19 +117,20 @@ class QrLipsyncAnalyzer():
             "total_frames": self._total_frames,
             "avg_framerate": self.get_mean(self._avg_framerate, 1),
             "avg_real_framerate": self.get_mean(self._avg_real_framerate, 1),
-            "avg_av_delay_ms": self.get_mean(self._delay_audio_video) if len(self._delay_audio_video) > 0 else "could not measure",
-            "median_av_delay_ms": self.get_median(self._delay_audio_video) if len(self._delay_audio_video) > 0 else "could not measure",
-            "max_delay_ms": int(self._max_delay_audio_video * 1000) if self._max_delay_audio_video else "could not measure",
+            "avg_av_delay_ms": self.get_mean(self._delay_audio_video_ms) if len(self._delay_audio_video_ms) > 0 else "could not measure",
+            "median_av_delay_ms": self.get_median(self._delay_audio_video_ms) if len(self._delay_audio_video_ms) > 0 else "could not measure",
+            "max_delay_ms": self._max_delay_audio_video if self._max_delay_audio_video else "could not measure",
             "max_delay_ts": self._timestamp_max_delay,
             "video_duration": self._video_duration,
-            "audio_duration": self._audio_duration
+            "audio_duration": self._audio_duration,
+            "matching_missing": self._matching_missing,
         }
         self.write_logfile("---------------------------- Global report --------------------------")
-        self.write_logfile("Nb total duplicated frames : %s/%s (%s%%)" % (self._total_dupl_frames, self._total_frames, results_dict['duplicated_frames_percent']))
-        self.write_logfile("Nb total dropped frame : %s/%s (%s%%)" % (self._total_drop_frames, self._total_frames, results_dict['dropped_frames_percent']))
+        self.write_logfile("Total duplicated frames : %s/%s (%s%%)" % (self._total_dupl_frames, self._total_frames, results_dict['duplicated_frames_percent']))
+        self.write_logfile("Total dropped frame : %s/%s (%s%%)" % (self._total_drop_frames, self._total_frames, results_dict['dropped_frames_percent']))
         self.write_logfile("Avg framerate is %s" % results_dict['avg_framerate'])
         self.write_logfile("Avg real framerate (based on qrcode content) is %s" % results_dict['avg_real_framerate'])
-        if len(self._delay_audio_video) > 0:
+        if len(self._delay_audio_video_ms) > 0:
             avg_value = results_dict['avg_av_delay_ms']
             if avg_value == 0:
                 string_avg_delay = "Delay between beep and qrcode is perfect (0)"
@@ -134,12 +138,15 @@ class QrLipsyncAnalyzer():
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, video is late" % abs(avg_value)
             else:
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, audio is late" % abs(avg_value)
-            string_avg_delay += " (median: %s)" % results_dict['median_av_delay_ms']
+            string_avg_delay += " (median: %sms" % results_dict['median_av_delay_ms']
+            if self._max_delay_audio_video:
+                string_avg_delay += ", max: %sms at %ss)" % (round(self._max_delay_audio_video * 1000, 1), round(self._timestamp_max_delay, 3))
+            else:
+                string_avg_delay += ")"
             self.write_logfile(string_avg_delay)
-        if self._max_delay_audio_video:
-            self.write_logfile("Max delay between beep and qrcode : %d ms at %s s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay))
-        self.write_logfile("Video duration is %s sec" % (self._video_duration))
-        self.write_logfile("Audio duration is %s sec" % (self._audio_duration))
+        self.write_logfile("Video duration is %ss" % (self._video_duration))
+        self.write_logfile("Audio duration is %ss" % (self._audio_duration))
+        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self._matching_missing, self._qrcode_frames_count))
         self.write_logfile("---------------------------------------------------------------------")
         fd_input_file.close()
         self._fd_result_log.close()
@@ -179,6 +186,9 @@ class QrLipsyncAnalyzer():
                 logger.error("Invalid line (timestamp, name or frame number missing)")
             freq_audio = line.get(self._custom_data_name)
             data_in_one_frame["timestamp"] = current_timestamp
+            if current_timestamp not in self._qrcode_timestamps:
+                self._qrcode_timestamps.append(current_timestamp)
+                self._qrcode_frames_count += 1
             data_in_one_frame["frame_number"] = frame_number
             data_in_one_frame["qrcode_name"] = qrcode_name
             if freq_audio is not None and len(freq_audio) > 0:
@@ -271,7 +281,7 @@ class QrLipsyncAnalyzer():
                             self._all_audio_buff.pop(index_audio)
                             self._audio_timestamp = audio_timestamp
                             self._qrcode_number = int(frame_number)
-                            self._delay_audio_video.append(diff_timestamp)
+                            self._delay_audio_video_ms.append(diff_timestamp * 1000)
                             return float(one_frame.get("freq_audio", 0))
                     else:
                         logger.warning("The Qrcode %s has already been analyzed" % (frame_number))
@@ -301,6 +311,7 @@ class QrLipsyncAnalyzer():
             freq_audio = one_audio_buf['freq_audio']
             audio_timestamp = one_audio_buf['timestamp']
             string = "No corresponding qrcode found for audio beep (%d Hz) at %ss" % (freq_audio, audio_timestamp)
+            self._matching_missing += 1
             logger.info("%s" % string)
             self.write_line(string, self._fd_result_log)
 
