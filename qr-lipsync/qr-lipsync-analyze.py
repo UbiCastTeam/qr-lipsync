@@ -7,6 +7,7 @@ import re
 import signal
 import sys
 import json
+import statistics
 from fractions import Fraction
 
 logger = logging.getLogger('qr-lipsync-analyze')
@@ -97,6 +98,12 @@ class QrLipsyncAnalyzer():
                 break
             line = self._read_andparse_line_in_file(fd_input_file)
 
+    def get_mean(self, list, ndigits=2):
+        return round(statistics.mean(list), ndigits)
+
+    def get_median(self, list, ndigits=2):
+        return round(statistics.median(list), ndigits)
+
     # Complete report when parsing is over
     def show_summary(self, fd_input_file):
         results_dict = {
@@ -105,30 +112,34 @@ class QrLipsyncAnalyzer():
             "dropped_frames": self._total_drop_frames,
             "dropped_frames_percent": round(100 * self._total_drop_frames / self._total_frames, 1),
             "total_frames": self._total_frames,
-            "avg_framerate": round(sum(self._avg_framerate) / len(self._avg_framerate), 1),
-            "avg_real_framerate": round(sum(self._avg_real_framerate) / len(self._avg_real_framerate), 1),
-            "avg_av_delay_ms": int((sum(self._delay_audio_video) / len(self._delay_audio_video)) * 1000) if len(self._delay_audio_video) > 0 else "could not measure",
+            "avg_framerate": self.get_mean(self._avg_framerate, 1),
+            "avg_real_framerate": self.get_mean(self._avg_real_framerate, 1),
+            "avg_av_delay_ms": self.get_mean(self._delay_audio_video) if len(self._delay_audio_video) > 0 else "could not measure",
+            "median_av_delay_ms": self.get_median(self._delay_audio_video) if len(self._delay_audio_video) > 0 else "could not measure",
             "max_delay_ms": int(self._max_delay_audio_video * 1000) if self._max_delay_audio_video else "could not measure",
             "max_delay_ts": self._timestamp_max_delay,
             "video_duration": self._video_duration,
             "audio_duration": self._audio_duration
         }
         self.write_logfile("---------------------------- Global report --------------------------")
-        self.write_logfile("Nb total duplicated frames : %s (%.2f%%)" % (self._total_dupl_frames, results_dict['duplicated_frames_percent']))
-        self.write_logfile("Nb total dropped frame : %s (%.2f%%)" % (self._total_drop_frames, results_dict['dropped_frames_percent']))
-        self.write_logfile("Avg framerate is %.3f" % results_dict['avg_framerate'])
-        self.write_logfile("Avg real framerate is %.3f" % results_dict['avg_real_framerate'])
+        self.write_logfile("Nb total duplicated frames : %s/%s (%s%%)" % (self._total_dupl_frames, self._total_frames, results_dict['duplicated_frames_percent']))
+        self.write_logfile("Nb total dropped frame : %s/%s (%s%%)" % (self._total_drop_frames, self._total_frames, results_dict['dropped_frames_percent']))
+        self.write_logfile("Avg framerate is %s" % results_dict['avg_framerate'])
+        self.write_logfile("Avg real framerate (based on qrcode content) is %s" % results_dict['avg_real_framerate'])
         if len(self._delay_audio_video) > 0:
             avg_value = results_dict['avg_av_delay_ms']
-            if avg_value < 0:
+            if avg_value == 0:
+                string_avg_delay = "Delay between beep and qrcode is perfect (0)"
+            elif avg_value < 0:
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, video is late" % abs(avg_value)
             else:
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, audio is late" % abs(avg_value)
+            string_avg_delay += " (median: %s)" % results_dict['median_av_delay_ms']
             self.write_logfile(string_avg_delay)
         if self._max_delay_audio_video:
-            self.write_logfile("Max delay between beep and qrcode : %d ms at %.3f s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay))
-        self.write_logfile("Video duration is %.3f sec" % (self._video_duration))
-        self.write_logfile("Audio duration is %.3f sec" % (self._audio_duration))
+            self.write_logfile("Max delay between beep and qrcode : %d ms at %s s" % (abs(self._max_delay_audio_video) * 1000, self._timestamp_max_delay))
+        self.write_logfile("Video duration is %s sec" % (self._video_duration))
+        self.write_logfile("Audio duration is %s sec" % (self._audio_duration))
         self.write_logfile("---------------------------------------------------------------------")
         fd_input_file.close()
         self._fd_result_log.close()
@@ -213,12 +224,12 @@ class QrLipsyncAnalyzer():
         if frame_diff > 0:
             self._nb_drop_frame += 1
             self._total_drop_frames += 1
-            warning = "At %.3f sec, frame dropped. Qrcode number is %s should be %s" % (self._video_timestamp, data_in_one_frame["frame_number"], self._frame_number + self._gap_frame)
+            warning = "At %s sec, frame dropped. Qrcode number is %s should be %s" % (self._video_timestamp, data_in_one_frame["frame_number"], self._frame_number + self._gap_frame)
             self._gap_frame += 1
         else:
             self._nb_dupl_frame += 1
             self._total_dupl_frames += 1
-            warning = "At %.3f sec, frame duplicated. Qrcode number is %s should be %s" % (self._video_timestamp, data_in_one_frame["frame_number"], self._frame_number + self._gap_frame)
+            warning = "At %s sec, frame duplicated. Qrcode number is %s should be %s" % (self._video_timestamp, data_in_one_frame["frame_number"], self._frame_number + self._gap_frame)
             self._gap_frame -= 1
         logger.debug("%s" % warning)
         self.write_line(warning, self._fd_result_log)
@@ -227,7 +238,7 @@ class QrLipsyncAnalyzer():
         framerate = 1000.0 / (float(self._video_timestamp - self._init_video_timestamp) / float((self._nb_frames_in_sec)) * 1000.0)
         self._avg_framerate.append(framerate)
         self._avg_real_framerate.append(self._real_fps)
-        # logger.info("Framerate is %.3f, at %.3f sec, we have %s frames dropped and %s frames duplicate, real framerate is %.3f" % (framerate, self._video_timestamp, self._nb_drop_frame, self._nb_dupl_frame, self._real_fps))
+        # logger.info("Framerate is %s, at %s sec, we have %s frames dropped and %s frames duplicate, real framerate is %s" % (framerate, self._video_timestamp, self._nb_drop_frame, self._nb_dupl_frame, self._real_fps))
         self._nb_dupl_frame = 0
         self._nb_drop_frame = 0
         self._nb_frames_in_sec = 0
@@ -252,7 +263,7 @@ class QrLipsyncAnalyzer():
                                 self._max_delay_audio_video = diff_timestamp
                                 self._timestamp_max_delay = one_frame.get("video_timestamp")
                             # if diff_timestamp * 1000.0 > self._offset_video:
-                            string = "The frame %s has a delay of %.3f sec. Audio timestamp is %.3f sec, video timestamp is %.3f sec" % (frame_number, diff_timestamp, audio_timestamp, one_frame.get("video_timestamp"))
+                            string = "The frame %s has a delay of %s sec. Audio timestamp is %s sec, video timestamp is %s sec" % (frame_number, diff_timestamp, audio_timestamp, one_frame.get("video_timestamp"))
                             logger.debug("%s" % string)
                             self.write_line(string, self._fd_result_log)
                             self.write_line("%s\t%s" % (audio_timestamp, diff_timestamp), self._fd_graph)
@@ -282,14 +293,14 @@ class QrLipsyncAnalyzer():
         for one_frame in self._frames_with_freq:
             video_timestamp = one_frame['timestamp']
             freq_in_frame = one_frame['freq_audio']
-            string = "The frame number %s at %.3f with the frequency %sHz already found" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
+            string = "The frame number %s at %s with the frequency %sHz already found" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
             logger.debug("%s" % string)
             self.write_line(string, self._fd_result_log)
         # self._all_audio_buff.reverse()
         for one_audio_buf in self._all_audio_buff:
             freq_audio = one_audio_buf['freq_audio']
             audio_timestamp = one_audio_buf['timestamp']
-            string = "No corresponding qrcode found for audio beep (%d Hz) at %.3fs" % (freq_audio, audio_timestamp)
+            string = "No corresponding qrcode found for audio beep (%d Hz) at %ss" % (freq_audio, audio_timestamp)
             logger.info("%s" % string)
             self.write_line(string, self._fd_result_log)
 
@@ -301,9 +312,9 @@ class QrLipsyncAnalyzer():
             video_timestamp = one_frame['timestamp']
             if video_timestamp + 1.0 < self._audio_timestamp:
                 if freq_analyzed == float(freq_in_frame):
-                    string = "The frame number %s at %.3f with the frequency %sHz already found, that means the beep with qrcode was duplicated" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
+                    string = "The frame number %s at %s with the frequency %sHz already found, that means the beep with qrcode was duplicated" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
                 else:
-                    string = "The frame number %s at %.3f has no corresponding beep, this should be %sHz" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
+                    string = "The frame number %s at %s has no corresponding beep, this should be %sHz" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
                 logger.debug("%s" % string)
 
                 self._frames_with_freq.pop(index)
@@ -347,9 +358,9 @@ class QrLipsyncAnalyzer():
             self._all_audio_buff.insert(0, audio_data)
         else:
             if line.get('AUDIODURATION'):
-                self._audio_duration = float(line['AUDIODURATION']) / 1000000000.0
+                self._audio_duration = round(float(line['AUDIODURATION']) / 1000000000.0, 3)
             if line.get('VIDEODURATION'):
-                self._video_duration = float(line['VIDEODURATION']) / 1000000000.0
+                self._video_duration = round(float(line['VIDEODURATION']) / 1000000000.0, 3)
 
         if len(self._frames_with_freq) > 0 and len(self._all_audio_buff) > 0:
             self._check_av_synchro()
