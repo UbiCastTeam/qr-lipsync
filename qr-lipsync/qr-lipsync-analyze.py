@@ -8,7 +8,6 @@ import signal
 import sys
 import json
 import statistics
-from fractions import Fraction
 
 logger = logging.getLogger('qr-lipsync-analyze')
 
@@ -37,11 +36,10 @@ class QrLipsyncAnalyzer():
         self._total_frames = 0
         self._total_drop_frames = 0
         self._total_dupl_frames = 0
-        self._offset_video = 0
         self._gap_frame = 0
         self._max_delay_audio_video = 0
         self._timestamp_max_delay = 0
-        self._matching_missing = 0
+        self._missing_beeps = 0
 
         self._got_first_frame_qrcode = False
         # 48000 hz / 1024 bands
@@ -71,13 +69,12 @@ class QrLipsyncAnalyzer():
         sys.exit(0)
 
     def start(self):
-        logger.info('Analyzing data')
+        logger.info('Reading file %s' % self._input_file)
         fd_input_file = open(self._input_file, 'r')
         self._fd_result_file = open(self._result_file, 'w')
         self._fd_result_log = open(self._result_log, 'w')
         self._fd_graph = open(self._result_to_graph, 'w')
         self.write_graphfile("time\tdelay")
-        self._init_offset_video(fd_input_file)
         try:
             fd_input_file.seek(0)
         except Exception as e:
@@ -93,15 +90,6 @@ class QrLipsyncAnalyzer():
 
         self._clean_all_list()
         self.show_summary(fd_input_file)
-
-    # Read line to get theorical framerate stored in Qrcode
-    def _init_offset_video(self, fd_input_file):
-        line = self._read_andparse_line_in_file(fd_input_file)
-        while(line):
-            if line.get('ELEMENTNAME') == 'qroverlay':
-                self._offset_video = self._get_offset_tolerance(line)
-                break
-            line = self._read_andparse_line_in_file(fd_input_file)
 
     def get_mean(self, list, ndigits=2):
         return round(statistics.mean(list), ndigits)
@@ -125,7 +113,7 @@ class QrLipsyncAnalyzer():
             "max_delay_ts": self._timestamp_max_delay,
             "video_duration": self._video_duration,
             "audio_duration": self._audio_duration,
-            "matching_missing": self._matching_missing,
+            "matching_missing": self._missing_beeps,
         }
         self.write_logfile("---------------------------- Global report --------------------------")
         self.write_logfile("Total duplicated frames : %s/%s (%s%%)" % (self._total_dupl_frames, self._total_frames, results_dict['duplicated_frames_percent']))
@@ -148,7 +136,7 @@ class QrLipsyncAnalyzer():
             self.write_logfile(string_avg_delay)
         self.write_logfile("Video duration is %ss" % (self._video_duration))
         self.write_logfile("Audio duration is %ss" % (self._audio_duration))
-        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self._matching_missing, len(self._frames_with_freq)))
+        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self._missing_beeps, len(self._frames_with_freq)))
         self.write_logfile("---------------------------------------------------------------------")
         fd_input_file.close()
         self._fd_result_log.close()
@@ -156,14 +144,6 @@ class QrLipsyncAnalyzer():
         with open(self._result_file, "w") as f:
             json.dump(results_dict, f)
         logger.info('Wrote results as JSON into %s' % self._result_file)
-
-    # We tolerate delay audio/video lower than one frame duration
-    def _get_offset_tolerance(self, line):
-        framerate = float(Fraction(line.get('FRAMERATE')))
-        self._ref_fps = int(framerate)
-        self._avg_framerate.append(framerate)
-        self._avg_real_framerate.append(framerate)
-        return 1000.0 / framerate
 
     def _get_regex_result(self, regex, string):
         result_regex = re.search(regex, string)
@@ -278,7 +258,6 @@ class QrLipsyncAnalyzer():
                             if abs(diff_timestamp) > abs(self._max_delay_audio_video):
                                 self._max_delay_audio_video = diff_timestamp
                                 self._timestamp_max_delay = one_frame.get("video_timestamp")
-                            # if diff_timestamp * 1000.0 > self._offset_video:
                             string = "The frame %s has a delay of %s sec. Audio timestamp is %s sec, video timestamp is %s sec" % (frame_number, diff_timestamp, audio_timestamp, one_frame.get("video_timestamp"))
                             logger.debug("%s" % string)
                             self.write_line(string, self._fd_result_log)
@@ -317,7 +296,7 @@ class QrLipsyncAnalyzer():
         logger.info("Checking AV sync")
         # for each new qrcode found that contains frequency information
         for f in self._frames_with_freq:
-            qrcode_freq = float(f['freq_audio'])
+            qrcode_freq = int(f['freq_audio'])
             # actual buffer timestamp, not the one written in the qrcode
             qrcode_ts = f['video_timestamp']
             audio_candidates = self.filter_audio_samples(timestamp=qrcode_ts, width=5)
@@ -328,14 +307,14 @@ class QrLipsyncAnalyzer():
                 logger.debug('Found beep at %ss, diff: %sms' % (ts, diff_ms))
                 self._delay_audio_video_ms.append(diff_ms)
             else:
-                logger.info('Did not find beep of %s Hz around %ss' % (qrcode_freq, qrcode_ts))
-                self._matching_missing += 1
+                logger.info('Did not find beep of %s Hz at %.3fs' % (qrcode_freq, qrcode_ts))
+                self._missing_beeps += 1
 
     def filter_audio_samples(self, timestamp, width):
+        # return audio buffers between timestamp - width and timestamp + width
         start = timestamp - width / 2
         end = timestamp + width / 2
-        # return audio buffers between timestamp - width and timestamp + width
-        samples = [a for a in self._all_audio_buff if (a["timestamp"] > start and a["timestamp"] < end)]
+        samples = [a for a in self._all_audio_buff if start < a['timestamp'] < end]
         return samples
 
     def find_beep(self, audio_samples, frequency):
