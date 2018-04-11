@@ -311,10 +311,9 @@ if __name__ == '__main__':
     if os.path.isfile(input_file):
         dirname = os.path.dirname(input_file)
         media_name = os.path.splitext(os.path.basename(input_file))[0]
-        media_name = media_name.replace("data", "report")
-        result_file = os.path.join(dirname, "%s.json" % media_name)
-        result_log = os.path.join(dirname, "%s.txt" % media_name)
-        result_graph = os.path.join(dirname, "%s_graph.txt" % (media_name))
+        result_file = os.path.join(dirname, "%s.report.json" % media_name)
+        result_log = os.path.join(dirname, "%s.report.txt" % media_name)
+        result_graph = os.path.join(dirname, "%s.graph.txt" % (media_name))
         a = QrLipsyncAnalyzer(input_file, result_file, result_log, result_graph, options.qrcode_name, options.custom_data_name)
         a.start()
     else:
