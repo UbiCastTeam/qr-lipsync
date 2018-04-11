@@ -33,8 +33,8 @@ class QrLipsyncAnalyzer():
         self._nb_dupl_frame = 0
         self._nb_drop_frame = 0
         self._nb_frames_in_sec = 0
-        self._total_frames = 0
-        self._total_drop_frames = 0
+        self.total_qrcode_frames = 0
+        self._total_dropped_frames = 0
         self._total_dupl_frames = 0
         self._gap_frame = 0
         self._max_delay_audio_video = 0
@@ -58,11 +58,12 @@ class QrLipsyncAnalyzer():
         self._custom_data_name = custom_data_name
         self._qrcode_names = list()
         self._found_qrcode_names = list()
-        self._frames_with_freq = list()
         self._all_audio_buff = list()
+        self.all_qrcodes = list()
+        self._qrcodes_with_freq = list()
+
         self._delay_audio_video_ms = list()
         self._avg_real_framerate = list()
-        self._avg_framerate = list()
 
     def _signal_handler(self, signal, frame):
         logger.info('You pressed Ctrl+C!')
@@ -85,8 +86,9 @@ class QrLipsyncAnalyzer():
                 self.parse_line(line)
             line = self._read_andparse_line_in_file(fd_input_file)
 
-        if len(self._frames_with_freq) > 0 and len(self._all_audio_buff) > 0:
+        if len(self._qrcodes_with_freq) > 0 and len(self._all_audio_buff) > 0:
             self.check_av_sync()
+        self.check_video_stats()
 
         self._clean_all_list()
         self.show_summary(fd_input_file)
@@ -101,11 +103,10 @@ class QrLipsyncAnalyzer():
     def show_summary(self, fd_input_file):
         results_dict = {
             "duplicated_frames": self._total_dupl_frames,
-            "duplicated_frames_percent": round(100 * self._total_dupl_frames / self._total_frames, 1),
-            "dropped_frames": self._total_drop_frames,
-            "dropped_frames_percent": round(100 * self._total_drop_frames / self._total_frames, 1),
-            "total_frames": self._total_frames,
-            "avg_framerate": self.get_mean(self._avg_framerate, 1),
+            "duplicated_frames_percent": round(100 * self._total_dupl_frames / self.total_qrcode_frames, 1),
+            "dropped_frames": self._total_dropped_frames,
+            "dropped_frames_percent": round(100 * self._total_dropped_frames / self.total_qrcode_frames, 1),
+            "total_frames": self.total_qrcode_frames,
             "avg_real_framerate": self.get_mean(self._avg_real_framerate, 1),
             "avg_av_delay_ms": self.get_mean(self._delay_audio_video_ms) if len(self._delay_audio_video_ms) > 0 else "could not measure",
             "median_av_delay_ms": self.get_median(self._delay_audio_video_ms) if len(self._delay_audio_video_ms) > 0 else "could not measure",
@@ -116,9 +117,8 @@ class QrLipsyncAnalyzer():
             "matching_missing": self._missing_beeps,
         }
         self.write_logfile("---------------------------- Global report --------------------------")
-        self.write_logfile("Total duplicated frames : %s/%s (%s%%)" % (self._total_dupl_frames, self._total_frames, results_dict['duplicated_frames_percent']))
-        self.write_logfile("Total dropped frame : %s/%s (%s%%)" % (self._total_drop_frames, self._total_frames, results_dict['dropped_frames_percent']))
-        self.write_logfile("Avg framerate is %s" % results_dict['avg_framerate'])
+        self.write_logfile("Total duplicated frames : %s/%s (%s%%)" % (self._total_dupl_frames, self.total_qrcode_frames, results_dict['duplicated_frames_percent']))
+        self.write_logfile("Total dropped frames : %s/%s (%s%%)" % (self._total_dropped_frames, self.total_qrcode_frames, results_dict['dropped_frames_percent']))
         self.write_logfile("Avg real framerate (based on qrcode content) is %s" % results_dict['avg_real_framerate'])
         if len(self._delay_audio_video_ms) > 0:
             avg_value = results_dict['avg_av_delay_ms']
@@ -136,7 +136,7 @@ class QrLipsyncAnalyzer():
             self.write_logfile(string_avg_delay)
         self.write_logfile("Video duration is %ss" % (self._video_duration))
         self.write_logfile("Audio duration is %ss" % (self._audio_duration))
-        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self._missing_beeps, len(self._frames_with_freq)))
+        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self._missing_beeps, len(self._qrcodes_with_freq)))
         self.write_logfile("---------------------------------------------------------------------")
         fd_input_file.close()
         self._fd_result_log.close()
@@ -161,9 +161,9 @@ class QrLipsyncAnalyzer():
             if qrcode_name not in self._found_qrcode_names:
                 self._found_qrcode_names.append(qrcode_name)
 
-            # actual buffer timestamp, in ns (gstreamer)
-            self._video_timestamp = float(line['VIDEOTIMESTAMP']) / 1000000000
-
+            # timestamp in qrcode
+            self._video_timestamp = decoded_timestamp = float(line['VIDEOTIMESTAMP']) / 1000000000
+            # actual decoded buffer timestamp, in ns (gstreamer)
             current_timestamp = float(line['TIMESTAMP']) / 1000000000
             frame_number = line['BUFFERCOUNT']
             if current_timestamp is None or qrcode_name is None or frame_number is None:
@@ -174,105 +174,15 @@ class QrLipsyncAnalyzer():
                 "timestamp": current_timestamp,  # timestamp in qrcode
                 "frame_number": frame_number,
                 "qrcode_name": qrcode_name,
+                "decoded_timestamp": decoded_timestamp
             }
 
             if freq_audio is not None and len(freq_audio) > 0:
                 qrcode["video_timestamp"] = self._video_timestamp
                 qrcode["freq_audio"] = freq_audio
-                if qrcode not in self._frames_with_freq:
-                    self._frames_with_freq.append(qrcode)
+                if qrcode not in self._qrcodes_with_freq:
+                    self._qrcodes_with_freq.append(qrcode)
         return qrcode
-
-    # Compare frame number theorical with frame number contained in Qrcode
-    def _check_frame_number(self, data_in_one_frame):
-        if not self._got_first_frame_qrcode:
-            # Initialized variables when first qr code is detected in the video
-            self._frame_number = data_in_one_frame.get("frame_number")
-            self._init_video_timestamp = self._video_timestamp
-            frame_diff = 0
-            self._got_first_frame_qrcode = True
-            self._nb_frames_in_sec = 0
-            self._real_fps = 0
-        elif self._frame_number - data_in_one_frame.get("frame_number") > self._frame_number - self._ref_fps and self._frame_number - self._ref_fps > 0:
-            # Case during video, qrcode number restart
-            frame_diff = 0
-            self._frame_number = data_in_one_frame.get("frame_number")
-            self._nb_dupl_frame = 0
-            self._nb_drop_frame = 0
-            self._gap_frame = 0
-            self._nb_frames_in_sec = 0
-            self._init_video_timestamp = self._video_timestamp
-            self._real_fps = 0
-        else:
-            frame_diff = data_in_one_frame.get("frame_number") - (self._frame_number + self._gap_frame)
-            self._nb_frames_in_sec += 1
-        if frame_diff != 0:
-            # Check if we have dropped or duplicate framerate
-            self._inconsistent_frame_number(frame_diff, data_in_one_frame)
-        if (self._video_timestamp - self._init_video_timestamp + 0.01) * 1000 >= 1000:
-            self._report_every_second()
-        elif frame_diff >= 0:
-            # Count nb frame if it is not a duplicate frame and less than one secondes is passed
-            self._real_fps += 1
-        self._frame_number += 1
-
-    def _inconsistent_frame_number(self, frame_diff, data_in_one_frame):
-        if frame_diff > 0:
-            self._nb_drop_frame += 1
-            self._total_drop_frames += 1
-            warning = "At %s sec, frame dropped. Qrcode number is %s should be %s" % (self._video_timestamp, data_in_one_frame["frame_number"], self._frame_number + self._gap_frame)
-            self._gap_frame += 1
-        else:
-            self._nb_dupl_frame += 1
-            self._total_dupl_frames += 1
-            warning = "At %s sec, frame duplicated. Qrcode number is %s should be %s" % (self._video_timestamp, data_in_one_frame["frame_number"], self._frame_number + self._gap_frame)
-            self._gap_frame -= 1
-        logger.debug("%s" % warning)
-        self.write_line(warning, self._fd_result_log)
-
-    def _report_every_second(self):
-        framerate = 1000.0 / (float(self._video_timestamp - self._init_video_timestamp) / float((self._nb_frames_in_sec)) * 1000.0)
-        self._avg_framerate.append(framerate)
-        self._avg_real_framerate.append(self._real_fps)
-        # logger.info("Framerate is %s, at %s sec, we have %s frames dropped and %s frames duplicate, real framerate is %s" % (framerate, self._video_timestamp, self._nb_drop_frame, self._nb_dupl_frame, self._real_fps))
-        self._nb_dupl_frame = 0
-        self._nb_drop_frame = 0
-        self._nb_frames_in_sec = 0
-        self._real_fps = 1
-        self._init_video_timestamp = self._video_timestamp
-
-    # Compare for each audio buffer containing freq if one Qrcode have a value close
-    # In this case we calculate delay audio/video
-    # return freq found with Qrcode corresponding
-    def _get_corresponding_freq(self):
-        for index_audio, audio_data in enumerate(self._all_audio_buff):
-            audio_freq = float(audio_data['freq_audio'])
-            audio_timestamp = audio_data['timestamp']
-            for index_video, one_frame in enumerate(self._frames_with_freq):
-                frame_freq_audio = float(one_frame['freq_audio'])
-                if abs(audio_freq - frame_freq_audio) < self._offset_freq and audio_freq < frame_freq_audio:
-                    diff_timestamp = audio_timestamp - one_frame.get("video_timestamp")
-                    frame_number = self._frames_with_freq[index_video].get('frame_number')
-                    if frame_number != self._qrcode_number:
-                        if diff_timestamp < 1.0:
-                            if abs(diff_timestamp) > abs(self._max_delay_audio_video):
-                                self._max_delay_audio_video = diff_timestamp
-                                self._timestamp_max_delay = one_frame.get("video_timestamp")
-                            string = "The frame %s has a delay of %s sec. Audio timestamp is %s sec, video timestamp is %s sec" % (frame_number, diff_timestamp, audio_timestamp, one_frame.get("video_timestamp"))
-                            logger.debug("%s" % string)
-                            self.write_line(string, self._fd_result_log)
-                            self.write_line("%s\t%s" % (audio_timestamp, diff_timestamp), self._fd_graph)
-                            self._frames_with_freq.pop(index_video)
-                            self._all_audio_buff.pop(index_audio)
-                            self._audio_timestamp = audio_timestamp
-                            self._qrcode_number = int(frame_number)
-                            self._delay_audio_video_ms.append(diff_timestamp * 1000)
-                            return float(one_frame.get("freq_audio", 0))
-                    else:
-                        logger.warning("The Qrcode %s has already been analyzed" % (frame_number))
-                        self._frames_with_freq.pop(index_video)
-                        return -1
-        return -1
 
     def _clean_all_list(self):
         if not self._found_qrcode_names:
@@ -284,18 +194,67 @@ class QrLipsyncAnalyzer():
             sys.exit(1)
 
         logger.info('Reached the end of the media, cleaning')
-        self._frames_with_freq.reverse()
-        for one_frame in self._frames_with_freq:
+        self._qrcodes_with_freq.reverse()
+        for one_frame in self._qrcodes_with_freq:
             video_timestamp = one_frame['timestamp']
             freq_in_frame = one_frame['freq_audio']
             string = "The frame number %s at %s with the frequency %sHz already found" % (one_frame.get('frame_number'), video_timestamp, freq_in_frame)
             logger.debug("%s" % string)
             self.write_line(string, self._fd_result_log)
 
+    def check_video_stats(self):
+        logger.info('Checking video stats')
+
+        # when capturing looped video samples, the frame count will reset to 1
+        # this is expected behaviour but may be interpreted as backwards frames
+        # we estimate that the sample is 30fps and is at least 10s long
+        max_backwards_diff = -30 * 10
+        start_timestamp = end_timestamp = None
+        frame_duration = None
+        qrcode_framerate = 0
+
+        last_qrcode = None
+        for qrcode in self.all_qrcodes:
+            timestamp = qrcode['decoded_timestamp']
+            if last_qrcode is not None:
+                frame_number = qrcode['frame_number']
+                last_frame_nb = last_qrcode['frame_number']
+                frame_number_diff = frame_number - last_frame_nb
+                if frame_number_diff == 1:
+                    # normal behaviour
+                    qrcode_framerate += 1
+                    if frame_duration is None:
+                        frame_duration = qrcode['timestamp'] - last_qrcode['timestamp']
+                        logger.info('Detected frame duration of %.1fms' % (frame_duration * 1000))
+                elif frame_number_diff > 1:
+                    qrcode_framerate += 1
+                    dropped_frames = frame_number_diff - 1
+                    self._total_dropped_frames += dropped_frames
+                    logger.warning("%s dropped frame(s): %s > %s at %.3fs" % (dropped_frames, last_frame_nb, frame_number, timestamp))
+                elif frame_number == last_frame_nb:
+                    logger.warning('1 duplicated frame at timestamp %.3fs' % timestamp)
+                    self._total_dupl_frames += 1
+                elif frame_number_diff < 0:
+                    qrcode_framerate += 1
+                    if frame_number_diff > max_backwards_diff:
+                        logger.warning('Backwards frame: %s > %s' % (frame_number, last_frame_nb))
+                    else:
+                        # video is starting over
+                        pass
+            if frame_duration is not None:
+                if start_timestamp is None:
+                    start_timestamp = timestamp
+                    end_timestamp = start_timestamp + 1 - frame_duration
+                elif timestamp >= end_timestamp:
+                    self._avg_real_framerate.append(qrcode_framerate)
+                    start_timestamp = end_timestamp = None
+                    qrcode_framerate = 0
+            last_qrcode = qrcode
+
     def check_av_sync(self):
         logger.info("Checking AV sync")
         # for each new qrcode found that contains frequency information
-        for f in self._frames_with_freq:
+        for f in self._qrcodes_with_freq:
             qrcode_freq = int(f['freq_audio'])
             # actual buffer timestamp, not the one written in the qrcode
             qrcode_ts = f['video_timestamp']
@@ -326,10 +285,9 @@ class QrLipsyncAnalyzer():
     def parse_line(self, line):
         name = line.get('ELEMENTNAME')
         if name == 'qroverlay':
-            self._total_frames += 1
-            data_in_one_frame = self.get_qrcode_data(line)
-            if data_in_one_frame:
-                self._check_frame_number(data_in_one_frame)
+            self.total_qrcode_frames += 1
+            qrcode = self.get_qrcode_data(line)
+            self.all_qrcodes.append(qrcode)
         elif name == 'spectrum':
             audio_data = {}
             audio_data["timestamp"] = float(line['TIMESTAMP']) / 1000000000
