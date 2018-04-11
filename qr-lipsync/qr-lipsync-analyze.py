@@ -35,6 +35,9 @@ class QrLipsyncAnalyzer():
         self.video_duration_s = 0
         self.audio_duration_s = 0
 
+        self.max_delay_ms = 0
+        self.max_delay_ts = 0
+
         self.qrcode_names = list()
         self.all_audio_beeps = list()
         self.all_qrcodes = list()
@@ -114,19 +117,15 @@ class QrLipsyncAnalyzer():
                 string_avg_delay += ")"
             self.write_logfile(string_avg_delay)
         self.write_logfile("Video duration is %ss" % (self.video_duration_s))
-        self.write_logfile("Audio duration is %ss" % (self.audio_duration_s))
-        self.write_logfile("Missed %s beeps out of %s qrcodes" % (self.missing_beeps_count, len(self.all_qrcodes_with_freq)))
+        if self.audio_duration_s:
+            self.write_logfile("Audio duration is %ss" % (self.audio_duration_s))
+            self.write_logfile("Missed %s beeps out of %s qrcodes" % (self.missing_beeps_count, len(self.all_qrcodes_with_freq)))
+        else:
+            self.write_logfile("No audio detected")
         self.write_logfile("---------------------------------------------------------------------")
         with open(self._result_file, "w") as f:
             json.dump(results_dict, f)
         logger.info('Wrote results as JSON into %s' % self._result_file)
-
-    def _get_regex_result(self, regex, string):
-        result_regex = re.search(regex, string)
-        if not result_regex:
-            # logger.warning("Could not parse regex : %s" % regex)
-            return None
-        return result_regex.group(1)
 
     def get_qrcode_data(self, line):
         qrcode_name = line['NAME']
@@ -134,7 +133,6 @@ class QrLipsyncAnalyzer():
             self.qrcode_names.append(qrcode_name)
 
         if qrcode_name == self.expected_qrcode_name:
-
             # timestamp in qrcode, converted to seconds
             decoded_timestamp = float(line['VIDEOTIMESTAMP']) / SECOND
             # actual decoded buffer timestamp, converted to seconds
@@ -169,7 +167,6 @@ class QrLipsyncAnalyzer():
 
     def check_video_stats(self):
         logger.info('Checking video stats')
-
         # when capturing looped video samples, the frame count will reset to 1
         # this is expected behaviour but may be interpreted as backwards frames
         # we estimate that the sample is 30fps and is at least 10s long
@@ -208,7 +205,7 @@ class QrLipsyncAnalyzer():
                         pass
             if frame_duration is not None:
                 if start_timestamp is None:
-                    start_timestamp = timestamp
+                    start_timestamp = int(timestamp)
                     end_timestamp = start_timestamp + 1 - frame_duration
                 elif timestamp >= end_timestamp:
                     self.all_qrcode_framerates.append(qrcode_framerate)
@@ -219,10 +216,6 @@ class QrLipsyncAnalyzer():
     def check_av_sync(self):
         if len(self.all_qrcodes_with_freq) > 0 and len(self.all_audio_beeps) > 0:
             logger.info("Checking AV sync")
-
-            self.max_delay_ms = 0
-            self.max_delay_ts = 0
-
             # for each new qrcode found that contains frequency information
             for f in self.all_qrcodes_with_freq:
                 qrcode_freq = int(f['beep_freq'])
