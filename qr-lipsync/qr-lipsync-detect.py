@@ -121,12 +121,12 @@ class QrLipsyncDetector(easyevent.User):
 
     def on_audio_fakesink_buffer(self, pad, info, data):
         buf = info.get_buffer()
-        self._audio_duration = buf.pts
+        self._audio_duration = buf.pts + buf.duration
         return True
 
     def on_video_fakesink_buffer(self, pad, info, data):
         buf = info.get_buffer()
-        self._video_duration = buf.pts
+        self._video_duration = buf.pts + buf.duration
         return True
 
     def evt_eos(self, event):
