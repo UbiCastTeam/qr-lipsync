@@ -57,7 +57,7 @@ class QrLipsyncDetector(easyevent.User):
         # https://github.com/mstorsjo/fdk-aac/issues/24
         # apple encoder adds 2112 samples
         # https://developer.apple.com/library/content/technotes/tn2258/_index.html
-        # we will assume 2048
+        # we will assume 2112 which gives a perfect result for our real samples
         self._encoder_latency = 1000000000 * 2112 / self._samplerate if self.media_info.get('a_codec') == 'aac' else 0
         # spectrum works on averaging over a 3ms interval, which adds latency
         self._encoder_latency += self.spectrum_interval_ns
