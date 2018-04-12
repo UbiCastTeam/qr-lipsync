@@ -54,7 +54,7 @@ class QrLipsyncGenerator(easyevent.User):
         video_src = "videotestsrc pattern=%s num-buffers=%s" % (s['background'], s['framerate'] * s['duration'])
         video_caps = "video/x-raw, format=(string)I420, width=(int)%s, height=(int)%s, framerate=(fraction)%s/1" % (s.get('width', 320), s.get('height', 240), s.get('framerate', 30))
         # the ticks duration is samplesperbuffer-long, so we need 1s long samples
-        audio_src = "audiotestsrc wave=8 freq=%s samplesperbuffer=%s name=audio_src num-buffers=%s" % (self.freq_array[self.increment], s['samplerate'], s['duration'])
+        audio_src = "audiotestsrc wave=ticks freq=%s samplesperbuffer=%s name=audio_src num-buffers=%s" % (self.freq_array[self.increment], s['samplerate'], s['duration'])
         audio_caps = 'capsfilter caps="audio/x-raw, format=(string)S16LE, layout=(string)interleaved, rate=(int)%s, channels=(int)1"' % s['samplerate']
         qroverlay = self._get_qroverlay(self.freq_array)
         textoverlay = self._get_textoverlay()

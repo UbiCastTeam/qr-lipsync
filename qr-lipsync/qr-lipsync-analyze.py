@@ -104,7 +104,7 @@ class QrLipsyncAnalyzer():
         self.write_logfile("Avg real framerate (based on qrcode content) is %s" % results_dict['avg_real_framerate'])
         if len(self.audio_video_delays_ms) > 0:
             avg_value = results_dict['avg_av_delay_ms']
-            if avg_value == 0:
+            if int(round(avg_value)) == 0:
                 string_avg_delay = "Delay between beep and qrcode is perfect (0)"
             elif avg_value < 0:
                 string_avg_delay = "Avg delay between beep and qrcode : %d ms, video is late" % abs(avg_value)

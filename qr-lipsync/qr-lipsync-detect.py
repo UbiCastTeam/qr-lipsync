@@ -50,7 +50,18 @@ class QrLipsyncDetector(easyevent.User):
         self._counter = 0
         self._qrcode_tickfreq_count = 0
         self._tick_count = 0
-        self._interval = 3000000
+        self.spectrum_interval_ns = 3000000
+
+        # FIXME: fdk adds 2048 samples of priming samples (silence) which adds 42ms of latency
+        # aacenc adds 1024 samples (21ms)
+        # https://github.com/mstorsjo/fdk-aac/issues/24
+        # apple encoder adds 2112 samples
+        # https://developer.apple.com/library/content/technotes/tn2258/_index.html
+        # we will assume 2048
+        self._encoder_latency = 1000000000 * 2112 / self._samplerate if self.media_info.get('a_codec') == 'aac' else 0
+        # spectrum works on averaging over a 3ms interval, which adds latency
+        self._encoder_latency += self.spectrum_interval_ns
+
         self._start_time = 0
         self._end_time = 0
         self._json_length = 70
@@ -83,7 +94,7 @@ class QrLipsyncDetector(easyevent.User):
         video_downscale_caps = "video/x-raw, format=(string)I420, width=(int)%s, height=(int)%s" % (downscaled_width, downscaling_height)
         qrcode_extract = "zbar name=qroverlay"
         audio_sink = "fakesink silent=false name=afakesink"
-        spectrum = "spectrum bands=%s name=spectrum interval=%s" % (self._bands_count, self._interval)
+        spectrum = "spectrum bands=%s name=spectrum interval=%s" % (self._bands_count, self.spectrum_interval_ns)
         progress = "progressreport update-freq=1"
         video_sink = "fakesink silent=false name=vfakesink"
         if self._samplerate:
@@ -156,7 +167,7 @@ class QrLipsyncDetector(easyevent.User):
     def evt_spectrum(self, event):
         elt_name = event.content['source']
         struct = event.content['data']
-        timestamp = struct.get_value('timestamp')
+        timestamp = struct.get_value('timestamp') - self._encoder_latency
         # FIXME: python does not support GValueList, parsing is required instead
         # https://bugzilla.gnome.org/show_bug.cgi?id=753754
         s = struct.to_string()
@@ -212,12 +223,13 @@ class QrLipsyncDetector(easyevent.User):
                 cmd = "ffprobe -v error -select_streams v -show_format_entry duration -of default=noprint_wrappers=1 -print_format json %s" % media_file
                 result = subprocess.check_output(cmd.split(' '), universal_newlines=True)
                 vjres['duration'] = json.loads(result)['format']['duration']
-            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate -of default=noprint_wrappers=1 -print_format json %s" % media_file
+            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate,codec_name -of default=noprint_wrappers=1 -print_format json %s" % media_file
             result = subprocess.check_output(cmd.split(' '), universal_newlines=True)
             ajres = json.loads(result)['streams']
             if ajres:
                 ajres = ajres[0]
                 vjres['sample_rate'] = ajres['sample_rate']
+                vjres['a_codec'] = ajres['codec_name']
             else:
                 logger.error("No audio track found, cannot detect sync")
             return vjres
