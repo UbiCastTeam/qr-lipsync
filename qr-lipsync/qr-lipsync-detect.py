@@ -31,9 +31,10 @@ class QrLipsyncDetector(easyevent.User):
         Filter spectrum events by frequency and peak.
         Write in a json file all QrCode events and spectrum events that have an high peak
     '''
-    def __init__(self, media_file, result_file, mainloop):
+    def __init__(self, media_file, result_file, options, mainloop):
         easyevent.User.__init__(self)
         self.register_event("eos", "barcode", "spectrum")
+        self.options = options
         self.media_info = self.get_media_info(media_file)
         self._samplerate = int(self.media_info.get('sample_rate', 0))
         self._media_duration = float(self.media_info['duration'])
@@ -85,22 +86,30 @@ class QrLipsyncDetector(easyevent.User):
         self.mainloop.quit()
 
     def get_pipeline(self, media_file):
-        src = 'filesrc location=%s' % (media_file)
-        demux = "decodebin name=dec"
+        pipeline = 'filesrc location=%s ! decodebin name=dec' % (media_file)
         video_width, video_height = self.media_info['width'], self.media_info['height']
-        ratio = float(video_width) / float(video_height)
-        downscaled_width = 640
-        downscaling_height = int(float(downscaled_width) / float(ratio))
-        video_downscale_caps = "video/x-raw, format=(string)I420, width=(int)%s, height=(int)%s" % (downscaled_width, downscaling_height)
-        qrcode_extract = "zbar name=qroverlay"
-        audio_sink = "fakesink silent=false name=afakesink"
-        spectrum = "spectrum bands=%s name=spectrum interval=%s" % (self._bands_count, self.spectrum_interval_ns)
-        progress = "progressreport update-freq=1"
-        video_sink = "fakesink silent=false name=vfakesink"
+        if self.options.area:
+            (x1, y1, x2, y2) = (int(i) for i in self.options.area.split(':'))
+            left = int(video_width * x1 / 100)
+            right = int(video_width * (100 - x2) / 100)
+            top = int(video_height * y1 / 100)
+            bottom = int(video_height * (100 - y2) / 100)
+            pipeline += " ! queue name=vbox ! videobox left=%s right=%s top=%s bottom=%s" % (left, right, top, bottom)
+
+            video_width = video_width - left - right
+            video_height = video_height - top - bottom
+
+        if self.options.downscale_width:
+            ratio = float(video_width) / float(video_height)
+            downscale_width = self.options.downscale_width
+            downscale_height = int(float(downscale_width) / float(ratio))
+            video_downscale_caps = "video/x-raw, format=(string)I420, width=(int)%s, height=(int)%s" % (downscale_width, downscale_height)
+            pipeline += " ! queue name=scaleq ! videoscale n-threads=0 ! queue name=vconvq ! videoconvert n-threads=0 ! %s" % video_downscale_caps
+
+        pipeline += " ! zbar name=qroverlay ! progressreport update-freq=1 ! fakesink silent=false name=vfakesink"
         if self._samplerate:
-            return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink} dec. ! queue name=audiodec ! audioconvert ! {spectrum} ! {audio_sink}".format(**locals())
-        else:
-            return "{src} ! {demux} ! videoscale ! videoconvert ! {video_downscale_caps} ! {qrcode_extract} ! {progress} ! {video_sink}".format(**locals())
+            pipeline += " dec. ! queue name=spectrumq ! spectrum bands=%s name=spectrum interval=%s ! fakesink silent=false name=afakesink" % (self._bands_count, self.spectrum_interval_ns)
+        return pipeline
 
     def start(self):
         if not hasattr(self.pipeline, 'pipeline'):
@@ -157,7 +166,7 @@ class QrLipsyncDetector(easyevent.User):
             qrcode['ELEMENTNAME'] = elt_name
             qrcode['VIDEOTIMESTAMP'] = timestamp
             if qrcode.get('TICKFREQ'):
-                logger.debug('qrcode found at timestamp %s, freq: %s' % (timestamp, qrcode['TICKFREQ']))
+                logger.debug('qrcode labeled %s found at timestamp %s, freq: %s Hz' % (qrcode['NAME'], timestamp, qrcode['TICKFREQ']))
                 self._qrcode_tickfreq_count += 1
             d = json.dumps(qrcode)
             self.write_line(d)
@@ -263,6 +272,8 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument('input_file', help='filename of video to analyze')
+    parser.add_argument('-a', '--area', help='area in x1:y1:x2:y2 format (in percent) to look qrcodes for; example: 0:30:30:80; reference is top left corner')
+    parser.add_argument('-d', '--downscale-width', help='downscale picture to this width to speed up qrcode lookup, 0 to disable', default=250)
     parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
     options = parser.parse_args()
     verbosity = getattr(logging, "DEBUG" if options.verbosity else "INFO")
@@ -279,7 +290,7 @@ if __name__ == '__main__':
         dirname = os.path.dirname(media_file)
         media_prefix = os.path.splitext(os.path.basename(media_file))[0]
         result_file = os.path.join(dirname, "%s_data.txt" % (media_prefix))
-        d = QrLipsyncDetector(media_file, result_file, mainloop)
+        d = QrLipsyncDetector(media_file, result_file, options, mainloop)
         GLib.idle_add(d.start)
         try:
             mainloop.run()
