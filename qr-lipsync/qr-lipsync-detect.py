@@ -104,7 +104,8 @@ class QrLipsyncDetector(easyevent.User):
             downscale_width = self.options.downscale_width
             downscale_height = int(float(downscale_width) / float(ratio))
             video_downscale_caps = "video/x-raw, format=(string)I420, width=(int)%s, height=(int)%s" % (downscale_width, downscale_height)
-            pipeline += " ! queue name=scaleq ! videoscale n-threads=0 ! queue name=vconvq ! videoconvert n-threads=0 ! %s" % video_downscale_caps
+            pipeline += " ! queue name=scaleq ! videoscale ! queue name=vconvq ! videoconvert ! %s" % video_downscale_caps
+            #pipeline += " ! queue name=scaleq ! videoscale n-threads=0 ! queue name=vconvq ! videoconvert n-threads=0 ! %s" % video_downscale_caps
 
         pipeline += " ! zbar name=qroverlay ! progressreport update-freq=1 ! fakesink silent=false name=vfakesink"
         if self._samplerate:
