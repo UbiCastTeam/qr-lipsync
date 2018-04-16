@@ -182,10 +182,10 @@ class QrLipsyncDetector(easyevent.User):
         elt_name = event.content['source']
         struct = event.content['data']
         timestamp = struct.get_value('timestamp') - self._encoder_latency
-        # FIXME: python does not support GValueList, parsing is required instead
-        # https://bugzilla.gnome.org/show_bug.cgi?id=753754
-        s = struct.to_string()
-        magnitude = self.get_string_to_float_list(s)
+        # there is a memory leak in gst.ValueList
+        # https://bugzilla.gnome.org/show_bug.cgi?id=795305
+        # tapping into the array attribute does not leak memory
+        magnitude = struct.get_value('magnitude').array
         # ignore lowest frequencies
         ignore_n_lowest_bands = int(self._min_freq / (self._samplerate / self._bands_count))
         for i in range(ignore_n_lowest_bands):
