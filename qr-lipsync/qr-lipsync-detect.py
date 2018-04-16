@@ -23,6 +23,8 @@ from gstmanager import PipelineManager
 
 logger = logging.getLogger('timing_analyzer')
 
+QUEUE_OPTS = "max-size-buffers=10 max-size-bytes=0 max-size-time=0"
+
 
 class QrLipsyncDetector(easyevent.User):
     '''
@@ -86,7 +88,7 @@ class QrLipsyncDetector(easyevent.User):
         self.mainloop.quit()
 
     def get_pipeline(self, media_file):
-        pipeline = 'filesrc location=%s ! decodebin name=dec' % (media_file)
+        pipeline = 'filesrc location=%s ! decodebin name=dec max-size-time=1000000000' % (media_file)
         video_width, video_height = self.media_info['width'], self.media_info['height']
         if self.options.area:
             (x1, y1, x2, y2) = (int(i) for i in self.options.area.split(':'))
@@ -94,7 +96,7 @@ class QrLipsyncDetector(easyevent.User):
             right = int(video_width * (100 - x2) / 100)
             top = int(video_height * y1 / 100)
             bottom = int(video_height * (100 - y2) / 100)
-            pipeline += " ! queue name=vbox ! videobox left=%s right=%s top=%s bottom=%s" % (left, right, top, bottom)
+            pipeline += " ! queue %s name=vbox ! videobox left=%s right=%s top=%s bottom=%s" % (QUEUE_OPTS, left, right, top, bottom)
 
             video_width = video_width - left - right
             video_height = video_height - top - bottom
@@ -104,12 +106,12 @@ class QrLipsyncDetector(easyevent.User):
             downscale_width = self.options.downscale_width
             downscale_height = int(float(downscale_width) / float(ratio))
             video_downscale_caps = "video/x-raw, format=(string)I420, width=(int)%s, height=(int)%s" % (downscale_width, downscale_height)
-            pipeline += " ! queue name=scaleq ! videoscale ! queue name=vconvq ! videoconvert ! %s" % video_downscale_caps
+            pipeline += " ! queue %s name=scaleq ! videoscale ! queue %s name=vconvq ! videoconvert ! %s" % (QUEUE_OPTS, QUEUE_OPTS, video_downscale_caps)
             #pipeline += " ! queue name=scaleq ! videoscale n-threads=0 ! queue name=vconvq ! videoconvert n-threads=0 ! %s" % video_downscale_caps
 
         pipeline += " ! zbar name=qroverlay ! progressreport update-freq=1 ! fakesink silent=false name=vfakesink"
         if self._samplerate:
-            pipeline += " dec. ! queue name=spectrumq ! spectrum bands=%s name=spectrum interval=%s ! fakesink silent=false name=afakesink" % (self._bands_count, self.spectrum_interval_ns)
+            pipeline += " dec. ! queue %s name=spectrumq ! spectrum bands=%s name=spectrum interval=%s ! fakesink silent=false name=afakesink" % (QUEUE_OPTS, self._bands_count, self.spectrum_interval_ns)
         return pipeline
 
     def start(self):
@@ -152,6 +154,8 @@ class QrLipsyncDetector(easyevent.User):
         self.write_line(duration_string)
         self._result_file.close()
         logger.info('Wrote file %s' % self._result_filename)
+        if not self.options.skip_results:
+            os.system('qr-lipsync-analyze.py %s' % self._result_filename)
         self.exit()
 
     def evt_barcode(self, event):
@@ -192,7 +196,7 @@ class QrLipsyncDetector(easyevent.User):
             band_index = magnitude.index(max_value)
             # self._samplerate / 2 is the nyquist frequency
             band_width = (self._samplerate / 2) / self._bands_count
-            band_start = band_index  * band_width
+            band_start = band_index * band_width
             band_end = (band_index + 1) * band_width
             # frequency is the middle of the band with the maximum magnitude
             freq = int((band_end - band_start) / 2 + band_start)
@@ -274,6 +278,7 @@ if __name__ == '__main__':
     )
     parser.add_argument('input_file', help='filename of video to analyze')
     parser.add_argument('-a', '--area', help='area in x1:y1:x2:y2 format (in percent) to look qrcodes for; example: 0:30:30:80; reference is top left corner')
+    parser.add_argument('-s', '--skip-results', help='do not display results right after analysis', action="store_true")
     parser.add_argument('-d', '--downscale-width', help='downscale picture to this width to speed up qrcode lookup, 0 to disable', default=250)
     parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
     options = parser.parse_args()
