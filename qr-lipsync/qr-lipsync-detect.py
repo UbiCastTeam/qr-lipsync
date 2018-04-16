@@ -5,7 +5,6 @@ import os
 # We don't want to use hw accel since it seems to be messing with latency
 os.environ['LIBVA_DRIVER_NAME'] = 'fakedriver'
 
-import re
 import shutil
 import sys
 import time
@@ -257,11 +256,6 @@ class QrLipsyncDetector(easyevent.User):
             self._audio_fakesink_pad.remove_probe(self._id_prob_audio_sink)
         if self._video_fakesink_pad:
             self._video_fakesink_pad.remove_probe(self._id_prob_video_sink)
-
-    def get_string_to_float_list(self, string):
-        my_list = list(re.search(r"magnitude=\(float\)([\d\- ,{}.]*)", string).group(1).strip("{}").split(","))
-        my_list = [float(i.strip()) for i in my_list]
-        return my_list
 
     def write_line(self, line):
         if line is not None:

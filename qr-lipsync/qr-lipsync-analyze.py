@@ -4,7 +4,6 @@ import time
 import logging
 import argparse
 import os
-import re
 import signal
 import sys
 import json
@@ -91,7 +90,7 @@ class QrLipsyncAnalyzer():
         return round(100 * value / total, ndigits)
 
     def get_ms_to_frames(self, value):
-        return value/self.frame_duration_ms
+        return value / self.frame_duration_ms
 
     # Complete report when parsing is over
     def show_summary(self):
@@ -249,7 +248,7 @@ class QrLipsyncAnalyzer():
                     # timestamps are in s
                     diff_ms = round((ts - qrcode_ts) * 1000)
                     logger.debug('Found beep at %ss, diff: %sms' % (ts, diff_ms))
-                    self.write_graphfile("%s\t%s" %(ts, diff_ms))
+                    self.write_graphfile("%s\t%s" % (ts, diff_ms))
                     self.audio_video_delays_ms.append(diff_ms)
                     if abs(diff_ms) > abs(self.max_delay_ms):
                         self.max_delay_ms = diff_ms
