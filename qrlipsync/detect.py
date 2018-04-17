@@ -147,7 +147,10 @@ class QrLipsyncDetector(easyevent.User):
         return True
 
     def evt_eos(self, event):
-        logger.info("eos received, found %s qrcodes (%s containing beeps) and %s beeps" % (self.qrcode_count, self.qrcode_with_beep_count, self._tick_count))
+        string = "found %s qrcodes (%s containing beep information)" % (self.qrcode_count, self.qrcode_with_beep_count)
+        if self._samplerate:
+            string += " and %s beeps in audio" % self._tick_count
+        logger.info(string)
         self.unregister_event("sos", "eos", "barcode", "spectrum")
         # FIXME disconnect it before eos is applied in pipeline
         # self._disconnect_probes()
