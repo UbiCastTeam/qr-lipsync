@@ -25,6 +25,12 @@ PATH=$PATH:bin PYTHONPATH=. qr-lipsync-generate.py
 PATH=$PATH:bin PYTHONPATH=. qr-lipsync-detect.py cam1-qrcode-blue-30.qt
 ```
 
+Or even
+```
+sudo ln -s `pwd`/bin/*.py /usr/local/bin
+sudo ln -s `pwd`/qrlipsync /usr/lib/python3.6/site-packages/
+```
+
 ## Running tests
 
 ```
