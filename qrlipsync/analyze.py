@@ -285,7 +285,7 @@ class QrLipsyncAnalyzer():
             "av_delay_accel",
         ]
         for k in should_be_zero:
-            if results.get(k, 0) != 0:
+            if results.get(k, 0) not in (0, NAN):
                 logger.error('Statistic %s is not 0 (%s), exiting with error' % (k, results[k]))
                 return 1
         return 0
