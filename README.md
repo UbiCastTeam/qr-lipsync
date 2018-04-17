@@ -16,7 +16,7 @@ You can refer to [this talk](https://gstconf.ubicast.tv/videos/robust-lipsync-ca
 ## Installation
 
 ```
-python setup.py install
+sudo python setup.py install
 ```
 
 Alternatively, you can run without installing with:
@@ -71,5 +71,6 @@ Sample output:
 
 * python3
 * gstreamer 1.0
+* ffmpeg
 * gobject-introspection
 * [gst-qroverlay](https://github.com/UbiCastTeam/gst-qroverlay) gstreamer qrcode generation plugin
