@@ -38,6 +38,7 @@ class AnalyzeTest(TestCase):
         self.assertIs(r['dropped_frames'], 0)
         self.assertIs(r['median_av_delay_ms'], 0)
         self.assertIs(r['matching_missing'], 0)
+        self.assertIs(r['av_delay_accel'], 0)
 
     def test_dropped(self):
         input_file = 'tests/dropped_data.txt'
@@ -45,6 +46,7 @@ class AnalyzeTest(TestCase):
         self.assertIs(r['duplicated_frames'], 0)
         self.assertIs(r['matching_missing'], 0)
         self.assertIs(r['dropped_frames'], 1)
+        self.assertIs(r['av_delay_accel'], 0)
 
     def test_duplicated(self):
         input_file = 'tests/duplicated_data.txt'
@@ -52,3 +54,12 @@ class AnalyzeTest(TestCase):
         self.assertIs(r['duplicated_frames'], 1)
         self.assertIs(r['dropped_frames'], 1)
         self.assertIs(r['matching_missing'], 0)
+        self.assertIs(r['av_delay_accel'], 0)
+
+    def test_drift(self):
+        input_file = 'tests/drift_data.txt'
+        r = analyze_file(input_file)
+        self.assertIs(r['duplicated_frames'], 0)
+        self.assertIs(r['dropped_frames'], 0)
+        self.assertIs(r['matching_missing'], 0)
+        self.assertTrue(r['av_delay_accel'] > 0)

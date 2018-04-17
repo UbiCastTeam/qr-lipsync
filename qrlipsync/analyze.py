@@ -82,21 +82,6 @@ class QrLipsyncAnalyzer():
             self._fd_result_log.close()
             self._fd_graph.close()
 
-    def get_mean(self, list, ndigits=2):
-        return round(statistics.mean(list), ndigits)
-
-    def get_median(self, list, ndigits=2):
-        if ndigits != 0:
-            return round(statistics.median(list), ndigits)
-        else:
-            return round(statistics.median(list))
-
-    def get_percent(self, value, total, ndigits=1):
-        return round(100 * value / total, ndigits)
-
-    def get_ms_to_frames(self, value):
-        return value / self.frame_duration_ms
-
     def get_qrcode_data(self, line):
         qrcode_name = line['NAME']
         if qrcode_name not in self.qrcode_names:
@@ -277,6 +262,7 @@ class QrLipsyncAnalyzer():
             "avg_real_framerate": self.get_mean(self.all_qrcode_framerates, 2),
             "avg_av_delay_ms": self.get_mean(self.audio_video_delays_ms) if len(self.audio_video_delays_ms) > 0 else "could not measure",
             "median_av_delay_ms": self.get_median(self.audio_video_delays_ms, 0) if len(self.audio_video_delays_ms) > 0 else "could not measure",
+            "av_delay_accel": self.get_accel(self.audio_video_delays_ms),
             "max_delay_ms": self.max_delay_ms,
             "max_delay_ts": self.max_delay_ts,
             "video_duration": self.video_duration_s,
@@ -284,6 +270,24 @@ class QrLipsyncAnalyzer():
             "matching_missing": self.missing_beeps_count,
         }
         return results_dict
+
+    def get_mean(self, list, ndigits=2):
+        return round(statistics.mean(list), ndigits)
+
+    def get_median(self, list, ndigits=2):
+        if ndigits != 0:
+            return round(statistics.median(list), ndigits)
+        else:
+            return round(statistics.median(list))
+
+    def get_percent(self, value, total, ndigits=1):
+        return round(100 * value / total, ndigits)
+
+    def get_ms_to_frames(self, value):
+        return value / self.frame_duration_ms
+
+    def get_accel(self, values):
+        return int(round((values[-1] - values[0]) / self.video_duration_s))
 
     def show_summary(self):
         results_dict = self.get_results_dict()
@@ -307,6 +311,8 @@ class QrLipsyncAnalyzer():
             else:
                 string_avg_delay += ")"
             self.write_logfile(string_avg_delay)
+            if results_dict['av_delay_accel']:
+                self.write_logfile("Warning, %s ms/s drift detected" % results_dict['av_delay_accel'])
         self.write_logfile("Video duration is %ss (%s)" % (self.video_duration_s, self.get_timecode_from_seconds(self.video_duration_s)))
         if self.audio_duration_s:
             self.write_logfile("Audio duration is %ss (%s)" % (self.audio_duration_s, self.get_timecode_from_seconds(self.audio_duration_s)))
