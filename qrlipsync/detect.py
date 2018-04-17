@@ -50,7 +50,8 @@ class QrLipsyncDetector(easyevent.User):
         self._magnitude_position = -1
         self._max_magnitude = 0
         self._counter = 0
-        self._qrcode_tickfreq_count = 0
+        self.qrcode_count = 0
+        self.qrcode_with_beep_count = 0
         self._tick_count = 0
         self.spectrum_interval_ns = 3000000
 
@@ -146,7 +147,7 @@ class QrLipsyncDetector(easyevent.User):
         return True
 
     def evt_eos(self, event):
-        logger.info("eos received, found %s qrcodes and %s ticks" % (self._qrcode_tickfreq_count, self._tick_count))
+        logger.info("eos received, found %s qrcodes (%s containing beeps) and %s beeps" % (self.qrcode_count, self.qrcode_with_beep_count, self._tick_count))
         self.unregister_event("sos", "eos", "barcode", "spectrum")
         # FIXME disconnect it before eos is applied in pipeline
         # self._disconnect_probes()
@@ -167,20 +168,19 @@ class QrLipsyncDetector(easyevent.User):
         struct = event.content['data']
         timestamp = struct.get_value('timestamp')
         json_data = struct.get_value('symbol')
-        #FIXME: qroverlay appends a trailing comma which makes the json invalid {"TIMESTAMP":33333333,"BUFFERCOUNT":2,"FRAMERATE":"30/1","NAME":"CAM1",}
         if json_data:
+            #FIXME: qroverlay appends a trailing comma which makes the json invalid {"TIMESTAMP":33333333,"BUFFERCOUNT":2,"FRAMERATE":"30/1","NAME":"CAM1",}
             qrcode = json.loads(json_data.replace(',}', '}'))
-        # Sometime plugin can not read QRcode information
-        if len(json_data) > self._json_length:
+            self.qrcode_count += 1
             qrcode['ELEMENTNAME'] = elt_name
             qrcode['VIDEOTIMESTAMP'] = timestamp
             if qrcode.get('TICKFREQ'):
                 logger.debug('qrcode labeled %s found at timestamp %s, freq: %s Hz' % (qrcode['NAME'], timestamp, qrcode['TICKFREQ']))
-                self._qrcode_tickfreq_count += 1
+                self.qrcode_with_beep_count += 1
             d = json.dumps(qrcode)
             self.write_line(d)
         else:
-            logger.warning("Could not get content of qrcode")
+            logger.warning("Could not get content of qrcode %s" % qrcode)
 
     def evt_spectrum(self, event):
         elt_name = event.content['source']
