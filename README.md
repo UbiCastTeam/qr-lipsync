@@ -76,7 +76,7 @@ Sample output:
 ## Dependencies
 
 * python3
-* gstreamer 1.0
+* gstreamer 1.0 with fdkaacenc
 * ffmpeg
 * gobject-introspection
 * [gst-qroverlay](https://github.com/UbiCastTeam/gst-qroverlay) gstreamer qrcode generation plugin
