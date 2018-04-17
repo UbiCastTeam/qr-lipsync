@@ -163,8 +163,9 @@ class QrLipsyncDetector(easyevent.User):
         self._result_file.close()
         logger.info('Wrote file %s' % self._result_filename)
         if not self.options.skip_results:
-            os.system('qr-lipsync-analyze.py %s' % self._result_filename)
-        self.exit()
+            sys.exit(os.system('qr-lipsync-analyze.py %s' % self._result_filename))
+        else:
+            self.exit()
 
     def evt_barcode(self, event):
         elt_name = event.content['source']

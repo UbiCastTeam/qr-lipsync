@@ -10,6 +10,7 @@ import statistics
 logger = logging.getLogger('qr-lipsync-analyze')
 
 SECOND = 1000000000
+NAN = "could not measure"
 
 
 class QrLipsyncAnalyzer():
@@ -73,8 +74,6 @@ class QrLipsyncAnalyzer():
         self.check_av_sync()
         self.check_video_stats()
         self.check_qrcode_names()
-        self.show_summary()
-        self.close_files()
 
     def close_files(self):
         if not self.options.no_report_files:
@@ -253,6 +252,12 @@ class QrLipsyncAnalyzer():
         self.write_line(line_content, self._fd_graph)
 
     def get_results_dict(self):
+        avg_av_delay_ms = self.get_mean(self.audio_video_delays_ms) if len(self.audio_video_delays_ms) > 0 else NAN
+        avg_av_delay_frames = self.get_ms_to_frames(avg_av_delay_ms) if avg_av_delay_ms != NAN else NAN
+
+        median_av_delay_ms = self.get_median(self.audio_video_delays_ms, 0) if len(self.audio_video_delays_ms) > 0 else NAN
+        median_av_delay_frames = self.get_ms_to_frames(median_av_delay_ms) if median_av_delay_ms != NAN else NAN
+
         results_dict = {
             "duplicated_frames": self.duplicated_frames_count,
             "duplicated_frames_percent": self.get_percent(self.duplicated_frames_count, self.qrcode_frames_count),
@@ -260,8 +265,10 @@ class QrLipsyncAnalyzer():
             "dropped_frames_percent": self.get_percent(self.dropped_frames_count, self.qrcode_frames_count),
             "total_frames": self.qrcode_frames_count,
             "avg_real_framerate": self.get_mean(self.all_qrcode_framerates, 2),
-            "avg_av_delay_ms": self.get_mean(self.audio_video_delays_ms) if len(self.audio_video_delays_ms) > 0 else "could not measure",
-            "median_av_delay_ms": self.get_median(self.audio_video_delays_ms, 0) if len(self.audio_video_delays_ms) > 0 else "could not measure",
+            "median_av_delay_ms": median_av_delay_ms,
+            "median_av_delay_frames": median_av_delay_frames,
+            "avg_av_delay_ms": avg_av_delay_ms,
+            "avg_av_delay_frames": avg_av_delay_frames,
             "av_delay_accel": self.get_accel(self.audio_video_delays_ms),
             "max_delay_ms": self.max_delay_ms,
             "max_delay_ts": self.max_delay_ts,
@@ -270,6 +277,18 @@ class QrLipsyncAnalyzer():
             "matching_missing": self.missing_beeps_count,
         }
         return results_dict
+
+    def get_exit_code(self, results):
+        should_be_zero = [
+            "median_av_delay_frames",
+            "avg_av_delay_frames",
+            "av_delay_accel",
+        ]
+        for k in should_be_zero:
+            if results.get(k, 0) != 0:
+                logger.error('Statistic %s is not 0 (%s), exiting with error' % (k, results[k]))
+                return 1
+        return 0
 
     def get_mean(self, list, ndigits=2):
         return round(statistics.mean(list), ndigits)
@@ -284,33 +303,35 @@ class QrLipsyncAnalyzer():
         return round(100 * value / total, ndigits)
 
     def get_ms_to_frames(self, value):
-        return value / self.frame_duration_ms
+        return int(round(value / self.frame_duration_ms, 1))
 
     def get_accel(self, values):
-        return int(round((values[-1] - values[0]) / self.video_duration_s))
+        if len(values):
+            return int(round((values[-1] - values[0]) / self.video_duration_s))
+        else:
+            return NAN
 
-    def show_summary(self):
+    def show_summary_and_exit(self):
         results_dict = self.get_results_dict()
         self.write_logfile("---------------------------- Global report --------------------------")
         self.write_logfile("Total duplicated frames : %s/%s (%s%%)" % (self.duplicated_frames_count, self.qrcode_frames_count, results_dict['duplicated_frames_percent']))
         self.write_logfile("Total dropped frames : %s/%s (%s%%)" % (self.dropped_frames_count, self.qrcode_frames_count, results_dict['dropped_frames_percent']))
-        self.write_logfile("Avg real framerate (based on qrcode content) is %s" % results_dict['avg_real_framerate'])
+        self.write_logfile("Average framerate (based on qrcode content) is %s" % results_dict['avg_real_framerate'])
         if len(self.audio_video_delays_ms) > 0:
-            avg_value = results_dict['avg_av_delay_ms']
-            if int(round(avg_value)) == 0:
-                string_avg_delay = "Delay between beep and qrcode is perfect (0)"
+            median_value = results_dict['median_av_delay_ms']
+            median_value_frames = results_dict['median_av_delay_frames']
+            if int(round(median_value)) == 0:
+                string_median_delay = "Delay between beep and qrcode is perfect (0)"
             else:
-                if avg_value < 0:
-                    string_avg_delay = "Avg delay between beep and qrcode : %d ms, video is late" % abs(avg_value)
+                string_median_delay = "Median delay between beep and qrcode : %d ms (%s frames)" % (abs(median_value), abs(median_value_frames))
+                if median_value < 0:
+                    string_median_delay += ", video is late"
                 else:
-                    string_avg_delay = "Avg delay between beep and qrcode : %d ms, audio is late" % abs(avg_value)
-                string_avg_delay += " (%.1f frames)" % self.get_ms_to_frames(abs(avg_value))
-            string_avg_delay += " (median: %sms (%.1f frames)" % (results_dict['median_av_delay_ms'], self.get_ms_to_frames(results_dict['median_av_delay_ms']))
+                    string_median_delay += ", audio is late"
+            string_median_delay += "; average: %sms (%.1f frames)" % (results_dict['avg_av_delay_ms'], results_dict['avg_av_delay_frames'])
             if self.max_delay_ms:
-                string_avg_delay += ", max: %sms at %s)" % (self.max_delay_ms, self.get_timecode_from_seconds(self.max_delay_ts))
-            else:
-                string_avg_delay += ")"
-            self.write_logfile(string_avg_delay)
+                string_median_delay += ", max: %sms at %s" % (self.max_delay_ms, self.get_timecode_from_seconds(self.max_delay_ts))
+            self.write_logfile(string_median_delay)
             if results_dict['av_delay_accel']:
                 self.write_logfile("Warning, %s ms/s drift detected" % results_dict['av_delay_accel'])
         self.write_logfile("Video duration is %ss (%s)" % (self.video_duration_s, self.get_timecode_from_seconds(self.video_duration_s)))
@@ -324,3 +345,8 @@ class QrLipsyncAnalyzer():
             with open(self._result_file, "w") as f:
                 json.dump(results_dict, f)
             logger.info('Wrote results as JSON into %s' % self._result_file)
+        self.exit(self.get_exit_code(results_dict))
+
+    def exit(self, code=0):
+        self.close_files()
+        sys.exit(code)

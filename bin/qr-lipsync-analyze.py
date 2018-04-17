@@ -31,6 +31,7 @@ if __name__ == '__main__':
     if os.path.isfile(input_file):
         a = QrLipsyncAnalyzer(input_file, options)
         a.start()
+        a.show_summary_and_exit()
     else:
         logger.error("File %s not found" % options.input_file)
         sys.exit(1)
