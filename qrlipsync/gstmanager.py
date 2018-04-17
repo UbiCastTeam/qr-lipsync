@@ -1,27 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-# * This Program is free software; you can redistribute it and/or
-# * modify it under the terms of the GNU Lesser General Public
-# * License as published by the Free Software Foundation; either
-# * version 2.1 of the License, or (at your option) any later version.
-# *
-# * Libav is distributed in the hope that it will be useful,
-# * but WITHOUT ANY WARRANTY; without even the implied warranty of
-# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# * Lesser General Public License for more details.
-# *
-# * You should have received a copy of the GNU Lesser General Public
-# * License along with Libav; if not, write to the Free Software
-# * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-
-"""
-Gstmanager: convenience fonctions for Gstreamer pipeline manipulation
-Copyright 2009, Florent Thiery, under the terms of LGPL
-Copyright 2013, Dirk Van Haerenborgh, under the terms of LGPL
-"""
-__author__ = ("Florent Thiery <fthiery@gmail.com>", "Dirk Van Haerenborgh <vhdirk@gmail.com>")
-
 import os
 import logging
 logger = logging.getLogger('Gstmanager')
@@ -32,12 +10,9 @@ from gi.repository import GObject, Gst
 
 
 pipeline_desc = "videotestsrc ! xvimagesink"
-try:
-    import easyevent
-    easyevent.dispatcher = 'gobject'
-except Exception:
-    from . import event as easyevent
-    easyevent.dispatcher = 'gobject'
+
+import qrlipsync.easyevent as easyevent
+easyevent.dispatcher = 'gobject'
 
 
 class PipelineManager(easyevent.User):
@@ -172,7 +147,7 @@ class PipelineManager(easyevent.User):
         elt = self.pipeline.get_by_name(element_name)
         result = elt.get_property(property_name)
         logger.debug("Getting value of property {0} of element {1}: {2}".format(property_name, element_name, result))
-        return returnesult
+        return result
 
     def activate_caps_reporting_on_element(self, element_name="whatever"):
         logger.debug("Activating caps reporting on element {0}".format(element_name))
@@ -183,7 +158,6 @@ class PipelineManager(easyevent.User):
         self.send_caps(out_pad, caps)
         # out_pad.set_setcaps_function(self.send_caps)
         # out_pad.set_activate_function_full(self.send_caps)
-
 
     def activate_polling_of_property_on_element(self, element_name="whatever", property="property", interval_ms=1000):
         GObject.timeout_add(interval_ms, self.poll_property, element_name, property)

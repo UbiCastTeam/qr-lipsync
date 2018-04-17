@@ -14,11 +14,11 @@ import json
 from fractions import Fraction
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GLib
+from gi.repository import Gst
 
-import easyevent
+import qrlipsync.easyevent as easyevent
 easyevent.dispatcher = 'gobject'
-from gstmanager import PipelineManager
+from qrlipsync.gstmanager import PipelineManager
 
 logger = logging.getLogger('timing_analyzer')
 
@@ -90,7 +90,12 @@ class QrLipsyncDetector(easyevent.User):
         pipeline = 'filesrc location=%s ! decodebin name=dec max-size-time=1000000000' % (media_file)
         video_width, video_height = self.media_info['width'], self.media_info['height']
         if self.options.area:
-            (x1, y1, x2, y2) = (int(i) for i in self.options.area.split(':'))
+            coords = [x1, y1, x2, y2] = [int(i) for i in self.options.area.split(':')]
+            if not x1 < x2 or not y1 < y2:
+                raise ValueError('Invalid coordinates in %s, values are x1:y1:x2:y2 from the top left corner, x1 must be smaller than x2, y1 must be smaller than y2')
+            for c in coords:
+                if not 0 <= c <= 100:
+                    raise ValueError('Invalid coordinates in %s, values have to be percents between 0 and 100' % self.options.area)
             left = int(video_width * x1 / 100)
             right = int(video_width * (100 - x2) / 100)
             top = int(video_height * y1 / 100)
@@ -262,40 +267,3 @@ class QrLipsyncDetector(easyevent.User):
             line += '\n'
             self._result_file.write(line)
             self._result_file.flush()
-
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(
-        description='Generate videos suitable for measuring lipsync with qrcodes',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument('input_file', help='filename of video to analyze')
-    parser.add_argument('-a', '--area', help='area in x1:y1:x2:y2 format (in percent) to look qrcodes for; example: 0:30:30:80; reference is top left corner')
-    parser.add_argument('-s', '--skip-results', help='do not display results right after analysis', action="store_true")
-    parser.add_argument('-d', '--downscale-width', help='downscale picture to this width to speed up qrcode lookup, 0 to disable', default=250)
-    parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
-    options = parser.parse_args()
-    verbosity = getattr(logging, "DEBUG" if options.verbosity else "INFO")
-
-    logging.basicConfig(
-        level=verbosity,
-        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-        stream=sys.stderr
-    )
-
-    media_file = options.input_file
-    mainloop = GLib.MainLoop()
-    if os.path.isfile(media_file):
-        dirname = os.path.dirname(media_file)
-        media_prefix = os.path.splitext(os.path.basename(media_file))[0]
-        result_file = os.path.join(dirname, "%s_data.txt" % (media_prefix))
-        d = QrLipsyncDetector(media_file, result_file, options, mainloop)
-        GLib.idle_add(d.start)
-        try:
-            mainloop.run()
-        except KeyboardInterrupt:
-            logger.info('Ctrl+C hit, stopping')
-            d.exit()
-    else:
-        logger.error("File %s not found" % media_file)
