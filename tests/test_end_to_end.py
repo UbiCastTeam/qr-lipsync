@@ -88,7 +88,6 @@ class AnalyzeTest(TestCase):
         self.assertTrue(self.run_cmd('qr-lipsync-analyze.py cam1-qrcode-blue-30_data.txt')[0] == 0)
         with open('cam1-qrcode-blue-30_data.report.json', 'r') as f:
             r = json.load(f)
-            print(r)
 
         self.assertTrue(r['duplicated_frames'] == 0)
         self.assertTrue(r['dropped_frames'] == 0)
