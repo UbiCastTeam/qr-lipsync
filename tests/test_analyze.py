@@ -26,40 +26,46 @@ def analyze_file(input_file):
     options = Options()
     q = QrLipsyncAnalyzer(input_file, options)
     q.start()
-    return q.get_results_dict()
+    results = q.get_results_dict()
+    exit_code = q.get_exit_code(results)
+    return results, exit_code
 
 
 class AnalyzeTest(TestCase):
 
     def test_normal(self):
         input_file = 'tests/normal_data.txt'
-        r = analyze_file(input_file)
-        self.assertIs(r['duplicated_frames'], 0)
-        self.assertIs(r['dropped_frames'], 0)
-        self.assertIs(r['median_av_delay_ms'], 0)
-        self.assertIs(r['matching_missing'], 0)
-        self.assertIs(r['av_delay_accel'], 0)
+        results, exit_code = analyze_file(input_file)
+        self.assertIs(results['duplicated_frames'], 0)
+        self.assertIs(results['dropped_frames'], 0)
+        self.assertIs(results['median_av_delay_ms'], 0)
+        self.assertIs(results['matching_missing'], 0)
+        self.assertIs(results['av_delay_accel'], 0)
+        self.assertIs(exit_code, 0)
 
     def test_dropped(self):
         input_file = 'tests/dropped_data.txt'
-        r = analyze_file(input_file)
-        self.assertIs(r['duplicated_frames'], 0)
-        self.assertIs(r['matching_missing'], 0)
-        self.assertIs(r['dropped_frames'], 1)
-        self.assertIs(r['av_delay_accel'], 0)
+        results, exit_code = analyze_file(input_file)
+        self.assertIs(results['duplicated_frames'], 0)
+        self.assertIs(results['matching_missing'], 0)
+        self.assertIs(results['dropped_frames'], 1)
+        self.assertIs(results['av_delay_accel'], 0)
+        self.assertIs(exit_code, 0)
 
     def test_duplicated(self):
         input_file = 'tests/duplicated_data.txt'
-        r = analyze_file(input_file)
-        self.assertIs(r['duplicated_frames'], 1)
-        self.assertIs(r['dropped_frames'], 1)
-        self.assertIs(r['matching_missing'], 0)
-        self.assertIs(r['av_delay_accel'], 0)
+        results, exit_code = analyze_file(input_file)
+        self.assertIs(results['duplicated_frames'], 1)
+        self.assertIs(results['dropped_frames'], 1)
+        self.assertIs(results['matching_missing'], 0)
+        self.assertIs(results['av_delay_accel'], 0)
+        self.assertIs(exit_code, 0)
 
     def test_drift(self):
         input_file = 'tests/drift_data.txt'
-        r = analyze_file(input_file)
-        self.assertIs(r['duplicated_frames'], 0)
-        self.assertIs(r['dropped_frames'], 0)
-        self.assertIs(r['matching_missing'], 0)
-        self.assertTrue(r['av_delay_accel'] > 0)
+        results, exit_code = analyze_file(input_file)
+        self.assertIs(results['duplicated_frames'], 0)
+        self.assertIs(results['dropped_frames'], 0)
+        self.assertIs(results['matching_missing'], 0)
+        self.assertTrue(results['av_delay_accel'] > 0)
+        self.assertIs(exit_code, 1)
