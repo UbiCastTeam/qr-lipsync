@@ -41,6 +41,7 @@ class AnalyzeTest(TestCase):
         self.assertIs(results['median_av_delay_ms'], 0)
         self.assertIs(results['matching_missing'], 0)
         self.assertIs(results['av_delay_accel'], 0)
+        self.assertIs(results['median_av_delay_frames'], 0)
         self.assertIs(exit_code, 0)
 
     def test_dropped(self):
@@ -50,6 +51,7 @@ class AnalyzeTest(TestCase):
         self.assertIs(results['matching_missing'], 0)
         self.assertIs(results['dropped_frames'], 1)
         self.assertIs(results['av_delay_accel'], 0)
+        self.assertIs(results['median_av_delay_frames'], 0)
         self.assertIs(exit_code, 0)
 
     def test_duplicated(self):
@@ -59,13 +61,26 @@ class AnalyzeTest(TestCase):
         self.assertIs(results['dropped_frames'], 1)
         self.assertIs(results['matching_missing'], 0)
         self.assertIs(results['av_delay_accel'], 0)
+        self.assertIs(results['median_av_delay_frames'], 0)
         self.assertIs(exit_code, 0)
+
+    def test_latency_bigger_than_one_frame(self):
+        input_file = 'tests/latency_bigger_than_one_frame_data.txt'
+        results, exit_code = analyze_file(input_file)
+        self.assertIs(results['duplicated_frames'], 0)
+        self.assertIs(results['dropped_frames'], 0)
+        self.assertIs(results['matching_missing'], 0)
+        self.assertIs(results['av_delay_accel'], 0)
+        self.assertTrue(int(results['median_av_delay_ms']) == 50)
+        self.assertIs(results['median_av_delay_frames'], 1)
+        self.assertIs(exit_code, 1)
 
     def test_drift(self):
         input_file = 'tests/drift_data.txt'
         results, exit_code = analyze_file(input_file)
         self.assertIs(results['duplicated_frames'], 0)
         self.assertIs(results['dropped_frames'], 0)
+        self.assertTrue(results['median_av_delay_ms'] != 0)
         self.assertIs(results['matching_missing'], 0)
         self.assertTrue(results['av_delay_accel'] > 0)
         self.assertIs(exit_code, 1)
