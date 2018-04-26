@@ -175,7 +175,7 @@ class QrLipsyncAnalyzer():
             last_qrcode = qrcode
 
     def check_av_sync(self):
-        if len(self.all_qrcodes_with_freq) > 0 and len(self.all_audio_beeps) > 0:
+        if len(self.all_qrcodes_with_freq) > 0:
             logger.info("Checking AV sync")
             # for each new qrcode found that contains frequency information
             for f in self.all_qrcodes_with_freq:

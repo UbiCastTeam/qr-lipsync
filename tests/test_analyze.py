@@ -84,3 +84,13 @@ class AnalyzeTest(TestCase):
         self.assertIs(results['matching_missing'], 0)
         self.assertTrue(results['av_delay_accel'] > 0)
         self.assertIs(exit_code, 1)
+
+    def test_nobeeps(self):
+        input_file = 'tests/nobeep_data.txt'
+        results, exit_code = analyze_file(input_file)
+        self.assertIs(results['duplicated_frames'], 0)
+        self.assertIs(results['dropped_frames'], 0)
+        self.assertTrue(results['median_av_delay_ms'] != 0)
+        self.assertIs(results['matching_missing'], 30)
+        self.assertTrue(results['av_delay_accel'] == "could not measure")
+        self.assertIs(exit_code, 0)
