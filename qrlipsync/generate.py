@@ -43,6 +43,9 @@ class QrLipsyncGenerator(easyevent.User):
         self.pipeline_str = self._get_pipeline_string()
         logger.info(self.pipeline_str)
         self.pipeline = PipelineManager(self.pipeline_str)
+        if not hasattr(self.pipeline, "pipeline"):
+            logger.error('Failed to start pipeline, exiting with error')
+            sys.exit(1)
 
     def _signal_handler(self, signal, frame):
         logger.info('You pressed Ctrl+C!')

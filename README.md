@@ -77,6 +77,7 @@ Sample output:
 
 * python3
 * gstreamer 1.0 with fdkaacenc
+* gst-python (gobject introspection overrides)
 * ffmpeg
 * gobject-introspection
 * [gst-qroverlay](https://github.com/UbiCastTeam/gst-qroverlay) gstreamer qrcode generation plugin
