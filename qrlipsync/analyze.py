@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import statistics
+import fractions
 
 logger = logging.getLogger('qr-lipsync-analyze')
 
@@ -102,6 +103,7 @@ class QrLipsyncAnalyzer():
                 "decoded_timestamp": decoded_timestamp,
                 "qrcode_frame_number": qrcode_frame_number,
                 "qrcode_name": qrcode_name,
+                "qrcode_framerate": float(fractions.Fraction(line.get('FRAMERATE'))),
             }
 
             beep_freq = line.get(self.custom_data_name)
@@ -133,10 +135,16 @@ class QrLipsyncAnalyzer():
         max_backwards_diff = -30 * 10
         start_timestamp = end_timestamp = None
         frame_duration = None
+
         qrcode_framerate = 0
 
         last_qrcode = None
         for qrcode in self.all_qrcodes:
+            if not self.frame_duration_ms:
+                frame_duration = 1 / qrcode["qrcode_framerate"]
+                self.frame_duration_ms = frame_duration * 1000
+                logger.info('Detected frame duration of %.1fms' % (self.frame_duration_ms))
+
             timestamp = qrcode['decoded_timestamp']
             if last_qrcode is not None:
                 qrcode_frame_number = qrcode['qrcode_frame_number']
@@ -145,10 +153,6 @@ class QrLipsyncAnalyzer():
                 if qrcode_frame_number_diff == 1:
                     # normal behaviour
                     qrcode_framerate += 1
-                    if frame_duration is None:
-                        frame_duration = qrcode['qrcode_timestamp'] - last_qrcode['qrcode_timestamp']
-                        self.frame_duration_ms = frame_duration * 1000
-                        logger.info('Detected frame duration of %.1fms' % (self.frame_duration_ms))
                 elif qrcode_frame_number_diff > 1:
                     qrcode_framerate += 1
                     dropped_frames = qrcode_frame_number_diff - 1
