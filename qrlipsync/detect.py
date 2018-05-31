@@ -106,7 +106,7 @@ class QrLipsyncDetector(easyevent.User):
             video_width = video_width - left - right
             video_height = video_height - top - bottom
 
-        if self.options.downscale_width:
+        if self.options.downscale_width > 0:
             ratio = float(video_width) / float(video_height)
             downscale_width = self.options.downscale_width
             downscale_height = int(float(downscale_width) / float(ratio))
