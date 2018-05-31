@@ -15,6 +15,11 @@ You can refer to [this talk](https://gstconf.ubicast.tv/videos/robust-lipsync-ca
 
 ## Installation
 
+Install the required packages; the following has been tested on ubuntu 18.04:
+```
+sudo apt install gstreamer1.0-plugins-{base,good,bad,ugly} gstreamer1.0-libav python3-gst-1.0 gstreamer1.0-tools python3-setuptools ffmpeg
+```
+
 ```
 sudo python setup.py install
 ```
