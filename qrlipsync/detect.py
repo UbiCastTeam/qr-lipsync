@@ -88,7 +88,7 @@ class QrLipsyncDetector(easyevent.User):
         self.mainloop.quit()
 
     def get_pipeline(self, media_file):
-        pipeline = 'filesrc location=%s ! decodebin name=dec max-size-time=1000000000' % (media_file)
+        pipeline = 'filesrc location="%s" ! decodebin name=dec max-size-time=1000000000' % (media_file)
         video_width, video_height = self.media_info['width'], self.media_info['height']
         if self.options.area:
             coords = [x1, y1, x2, y2] = [int(i) for i in self.options.area.split(':')]
@@ -230,6 +230,12 @@ class QrLipsyncDetector(easyevent.User):
                     self._tick_count += 1
                     self.write_line(json.dumps(result))
 
+    def run_subprocess(self, cmd, filename):
+        fields = cmd.split(' ')
+        fields.append(filename)
+        result = subprocess.check_output(fields, universal_newlines=True)
+        return result
+
     def get_media_info(self, media_file):
         try:
             ffprobe = shutil.which('ffprobe')
@@ -238,15 +244,15 @@ class QrLipsyncDetector(easyevent.User):
             from distutils.spawn import find_executable
             ffprobe = find_executable('ffprobe')
         if ffprobe:
-            cmd = "ffprobe -v error -select_streams v -show_entries stream=width,height,avg_frame_rate,duration -of default=noprint_wrappers=1 -print_format json %s" % media_file
-            result = subprocess.check_output(cmd.split(' '), universal_newlines=True)
+            cmd = 'ffprobe -v error -select_streams v -show_entries stream=width,height,avg_frame_rate,duration -of default=noprint_wrappers=1 -print_format json'
+            result = self.run_subprocess(cmd, media_file)
             vjres = json.loads(result)['streams'][0]
             if not vjres.get('duration'):
-                cmd = "ffprobe -v error -select_streams v -show_format_entry duration -of default=noprint_wrappers=1 -print_format json %s" % media_file
-                result = subprocess.check_output(cmd.split(' '), universal_newlines=True)
+                cmd = "ffprobe -v error -select_streams v -show_format_entry duration -of default=noprint_wrappers=1 -print_format json"
+                result = self.run_subprocess(cmd, media_file)
                 vjres['duration'] = json.loads(result)['format']['duration']
-            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate,codec_name -of default=noprint_wrappers=1 -print_format json %s" % media_file
-            result = subprocess.check_output(cmd.split(' '), universal_newlines=True)
+            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate,codec_name -of default=noprint_wrappers=1 -print_format json"
+            result = self.run_subprocess(cmd, media_file)
             ajres = json.loads(result)['streams']
             if ajres:
                 ajres = ajres[0]
