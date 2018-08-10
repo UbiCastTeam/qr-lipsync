@@ -1,0 +1,7 @@
+test_job:
+
+    tags:
+        - builder-ssh
+
+    script:
+        - docker build -t qrlipsync .
