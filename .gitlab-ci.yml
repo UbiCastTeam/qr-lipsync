@@ -4,4 +4,5 @@ test_job:
         - builder-ssh
 
     script:
+        - docker pull archlinux/base
         - docker build -t qrlipsync .
