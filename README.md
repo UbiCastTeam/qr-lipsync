@@ -1,5 +1,7 @@
 # QrLipsync
 
+Lip sync should be within +45 to -125 milliseconds for most people not to notice. Our brains are at least two times more sensitive to early audio than to late audio because audio doesn’t come before video in the natural world. Achieving good-enough lipsync (i.e. within this range) is necessary to ensure a good quality of experience for the viewers.
+
 QrLipsync is an audio-video latency (also referred to as [lipsync](https://en.wikipedia.org/wiki/Lip_sync)) measurement and validation tool.
 
 It works by
@@ -33,7 +35,7 @@ PATH=$PATH:bin PYTHONPATH=. qr-lipsync-detect.py cam1-qrcode-blue-30.qt
 Or even
 ```
 sudo ln -s `pwd`/bin/*.py /usr/local/bin
-sudo ln -s `pwd`/qrlipsync /usr/lib/python3.6/site-packages/
+sudo ln -s `pwd`/qrlipsync /usr/lib/python3.7/site-packages/
 ```
 
 ## Running tests
