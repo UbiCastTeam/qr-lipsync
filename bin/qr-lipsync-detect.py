@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser.add_argument('input_file', help='filename of video to analyze')
     parser.add_argument('-a', '--area', help='area in x1:y1:x2:y2 format (in percent) to look qrcodes for; example: 0:30:30:80; reference is top left corner')
     parser.add_argument('-s', '--skip-results', help='do not display results right after analysis', action="store_true")
-    parser.add_argument('-d', '--downscale-width', help='downscale picture to this width to speed up qrcode lookup, 0 to disable', default=250, type=int)
+    parser.add_argument('-d', '--downscale-width', help='downscale picture to this width to speed up qrcode lookup, 0 to disable', default=300, type=int)
     parser.add_argument('-p', '--preview', help='display a live preview of the analyzed area', action="store_true")
     parser.add_argument('-v', '--verbosity', help='increase output verbosity', action="store_true")
     options = parser.parse_args()
