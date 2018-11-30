@@ -114,7 +114,9 @@ class QrLipsyncDetector(easyevent.User):
             pipeline += " ! queue %s name=scaleq ! videoscale ! queue %s name=vconvq ! videoconvert ! %s" % (QUEUE_OPTS, QUEUE_OPTS, video_downscale_caps)
             #pipeline += " ! queue name=scaleq ! videoscale n-threads=0 ! queue name=vconvq ! videoconvert n-threads=0 ! %s" % video_downscale_caps
 
-        pipeline += " ! zbar name=qroverlay ! progressreport update-freq=1 ! fakesink silent=false name=vfakesink"
+        if self.options.preview:
+            pipeline += " ! tee name=tee ! queue ! fpsdisplaysink sync=false tee. ! queue"
+        pipeline += " ! zbar ! progressreport update-freq=1 ! fakesink silent=false name=vfakesink"
         if self._samplerate:
             pipeline += " dec. ! queue %s name=spectrumq ! spectrum bands=%s name=spectrum interval=%s ! fakesink silent=false name=afakesink" % (QUEUE_OPTS, self._bands_count, self.spectrum_interval_ns)
         return pipeline
@@ -175,16 +177,19 @@ class QrLipsyncDetector(easyevent.User):
         if json_data:
             #FIXME: qroverlay appends a trailing comma which makes the json invalid {"TIMESTAMP":33333333,"BUFFERCOUNT":2,"FRAMERATE":"30/1","NAME":"CAM1",}
             qrcode = json.loads(json_data.replace(',}', '}'))
-            self.qrcode_count += 1
-            qrcode['ELEMENTNAME'] = elt_name
-            qrcode['VIDEOTIMESTAMP'] = timestamp
-            if qrcode.get('TICKFREQ'):
-                logger.debug('qrcode labeled %s found at timestamp %s, freq: %s Hz' % (qrcode['NAME'], timestamp, qrcode['TICKFREQ']))
-                self.qrcode_with_beep_count += 1
-            d = json.dumps(qrcode)
-            self.write_line(d)
+            if isinstance(qrcode, dict):
+                self.qrcode_count += 1
+                qrcode['ELEMENTNAME'] = elt_name
+                qrcode['VIDEOTIMESTAMP'] = timestamp
+                if qrcode.get('TICKFREQ'):
+                    logger.debug('qrcode labeled %s found at timestamp %s, freq: %s Hz' % (qrcode['NAME'], timestamp, qrcode['TICKFREQ']))
+                    self.qrcode_with_beep_count += 1
+                d = json.dumps(qrcode)
+                self.write_line(d)
+            else:
+                logger.warning('Got unexpected qrcode data: %s' % json_data)
         else:
-            logger.warning("Could not get content of qrcode %s" % qrcode)
+            logger.warning("Could not get content of qrcode %s" % json_data)
 
     def evt_spectrum(self, event):
         elt_name = event.content['source']
