@@ -116,7 +116,7 @@ class QrLipsyncDetector(easyevent.User):
 
         if self.options.preview:
             pipeline += " ! tee name=tee ! queue ! fpsdisplaysink sync=false tee. ! queue"
-        pipeline += " ! zbar ! progressreport update-freq=1 ! fakesink silent=false name=vfakesink"
+        pipeline += " ! zbar name=qrcode_detector ! progressreport update-freq=1 ! fakesink silent=false name=vfakesink"
         if self._samplerate:
             pipeline += " dec. ! queue %s name=spectrumq ! spectrum bands=%s name=spectrum interval=%s ! fakesink silent=false name=afakesink" % (QUEUE_OPTS, self._bands_count, self.spectrum_interval_ns)
         return pipeline
