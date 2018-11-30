@@ -293,7 +293,7 @@ class QrLipsyncAnalyzer():
             "av_delay_accel",
         ]
         for k in should_be_zero:
-            if results.get(k, 0) not in (0, NAN):
+            if results.get(k, NAN) not in (0, NAN):
                 logger.error('Statistic %s is not 0 (%s), exiting with error' % (k, results[k]))
                 return 1
         return 0
@@ -345,7 +345,10 @@ class QrLipsyncAnalyzer():
         self.write_logfile("Video duration is %ss (%s)" % (self.video_duration_s, self.get_timecode_from_seconds(self.video_duration_s)))
         if self.audio_duration_s:
             self.write_logfile("Audio duration is %ss (%s)" % (self.audio_duration_s, self.get_timecode_from_seconds(self.audio_duration_s)))
-            self.write_logfile("Missed %s beeps out of %s qrcodes (%i%%)" % (self.missing_beeps_count, len(self.all_qrcodes_with_freq), 100 * self.missing_beeps_count / len(self.all_qrcodes_with_freq)))
+            if len(self.all_qrcodes_with_freq) == 0:
+                self.write_logfile("Found no qrcodes with freq, cannot measure lipsync")
+            else:
+                self.write_logfile("Missed %s beeps out of %s qrcodes (%i%%)" % (self.missing_beeps_count, len(self.all_qrcodes_with_freq), 100 * self.missing_beeps_count / len(self.all_qrcodes_with_freq)))
         else:
             self.write_logfile("No audio detected")
         self.write_logfile("---------------------------------------------------------------------")
