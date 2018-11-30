@@ -65,11 +65,11 @@ class QrLipsyncAnalyzer():
                 fd_input_file.seek(0)
             except Exception as e:
                 logger.error("Could not seek at the begining : %s" % e)
-            line = self._read_andparse_line_in_file(fd_input_file)
+            line = self.read_and_parse_line(fd_input_file)
             while (line):
                 if len(line) > 0:
                     self.parse_line(line)
-                line = self._read_andparse_line_in_file(fd_input_file)
+                line = self.read_and_parse_line(fd_input_file)
 
         logger.info('Finished reading, took %is' % (time.time() - begin))
         self.check_av_sync()
@@ -233,13 +233,17 @@ class QrLipsyncAnalyzer():
             if line.get('VIDEODURATION'):
                 self.video_duration_s = round(float(line['VIDEODURATION']) / SECOND, 3)
 
-    def _read_andparse_line_in_file(self, fd_input_file):
-        line = fd_input_file.readline()
-        if line:
-            try:
-                return json.loads(line)
-            except Exception as e:
-                print("Failed to parse line %s : %s" % (repr(line), e))
+    def read_and_parse_line(self, fd_input_file):
+        try:
+            line = fd_input_file.readline()
+            if line:
+                try:
+                    return json.loads(line)
+                except Exception as e:
+                    print("Failed to parse line %s : %s" % (repr(line), e))
+        except UnicodeDecodeError:
+            print('This file is not a text file, exiting')
+            sys.exit(1)
 
     def write_line(self, line_content, dfile):
         if not self.options.no_report_files:
