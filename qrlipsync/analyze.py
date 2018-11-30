@@ -216,7 +216,7 @@ class QrLipsyncAnalyzer():
 
     def parse_line(self, line):
         name = line.get('ELEMENTNAME')
-        if name == 'qroverlay':
+        if name == 'zbar0':
             self.qrcode_frames_count += 1
             qrcode = self.get_qrcode_data(line)
             if qrcode:
