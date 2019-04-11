@@ -6,7 +6,7 @@ QrLipsync is an audio-video latency (also referred to as [lipsync](https://en.wi
 
 It works by
 
-* crafting a special video whose video and audio tracks contain encoded metadata (into a qrcode for the video, and as an easily detectable frequency)
+* crafting a special video whose video and audio tracks contain encoded metadata (into a qrcode for the video, and as an easily detectable frequency), a sample is available for download [here](https://u.nu/qrubi)
 * capturing this special video with a video playback or capture system
 * extracting the encoded metadata by analyzing the recorded file audio and video
 * computing statistics about the extracted data (actual framerate, frame drops/duplications, audio/video delay)
