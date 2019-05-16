@@ -1,7 +1,7 @@
 test_job:
 
     tags:
-        - builder-ssh
+        - builder-shell
 
     script:
         - docker pull archlinux/base
