@@ -83,7 +83,7 @@ class AnalyzeTest(TestCase):
         self.assertTrue(r['matching_missing'] == 0)
 
     def test_generate_and_analyze_noaudio(self):
-        self.assertTrue(self.run_cmd('qr-lipsync-generate.py -a')[0] == 0)
+        self.assertTrue(self.run_cmd('qr-lipsync-generate.py --disable-audio')[0] == 0)
         self.assertTrue(self.run_cmd('qr-lipsync-detect.py -s cam1-qrcode-blue-30.qt')[0] == 0)
         self.assertTrue(self.run_cmd('qr-lipsync-analyze.py cam1-qrcode-blue-30_data.txt')[0] == 0)
         with open('cam1-qrcode-blue-30_data.report.json', 'r') as f:

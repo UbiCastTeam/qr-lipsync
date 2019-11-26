@@ -34,6 +34,7 @@ class QrLipsyncDetector:
         self._result_file = open(result_file, "w")
         self._bands_count = 1024
         self.last_freq = 0
+        self.baseline_freq = 240
         self._first_tick_timestamp = -1
         self._first_tick_timestamp_saved = -1
         self._magnitude_position = -1
@@ -255,6 +256,7 @@ class QrLipsyncDetector:
         for i in range(ignore_n_lowest_bands):
             magnitude[i] = -60
 
+        print(magnitude)
         max_value = max(magnitude)
         if max_value > self._threshold_db:
             band_index = magnitude.index(max_value)

@@ -17,27 +17,32 @@ if __name__ == "__main__":
         "-v", "--verbosity", help="increase output verbosity", action="store_true"
     )
     parser.add_argument(
-        "-a",
         "--disable-audio",
-        help="enable audio track",
+        help="disable audio track",
         action="store_true",
         default=False,
     )
     parser.add_argument(
-        "-t",
+        "--disable-audio-baseline",
+        help="disable audio baseline",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--enable-textoverlay",
         help="enable text overlay (shows timecode)",
         action="store_true",
         default=True,
     )
     parser.add_argument(
-        "-q",
-        "--qrcode-name",
-        help="name inserted into the qrcode pattern",
-        default="cam1",
+        "--qrcode-name", help="name inserted into the qrcode pattern", default="cam1",
     )
     parser.add_argument(
-        "-d", "--duration", help="duration in seconds", type=int, default=30
+        "-d",
+        "--duration",
+        help="duration of generated sample in seconds",
+        type=int,
+        default=30,
     )
     parser.add_argument("-r", "--framerate", help="framerate", type=int, default=30)
     parser.add_argument("-s", "--size", help="video size", type=str, default="640x360")
@@ -73,6 +78,56 @@ if __name__ == "__main__":
         logger.error('Size must be in the following format: "640x360"')
         sys.exit(1)
 
+    freq_array = [
+        240,
+        480,
+        720,
+        960,
+        1200,
+        1440,
+        1680,
+        1920,
+        2160,
+        2400,
+        2640,
+        2880,
+        3120,
+        3360,
+        3600,
+        3840,
+        4080,
+        4320,
+        4560,
+        4800,
+        5040,
+        5280,
+        5520,
+        5760,
+        6000,
+        6240,
+        6480,
+        6720,
+        6960,
+        7200,
+        7440,
+        7680,
+        7920,
+        8160,
+        8400,
+        8640,
+        8880,
+        9120,
+        9360,
+        9600,
+        9840,
+        10080,
+    ]
+
+    if not options.disable_audio_baseline:
+        baseline_freq_array = [freq_array.pop(0)]
+    else:
+        baseline_freq_array = []
+
     settings = {
         "disable_audio": options.disable_audio,
         "samplerate": 48000,
@@ -85,50 +140,8 @@ if __name__ == "__main__":
         "framerate": options.framerate,
         "qr_pix_size": 4,
         "extra_data_name": "tickfreq",
-        "freq_array": (
-            240,
-            480,
-            720,
-            960,
-            1200,
-            1440,
-            1680,
-            1920,
-            2160,
-            2400,
-            2640,
-            2880,
-            3120,
-            3360,
-            3600,
-            3840,
-            4080,
-            4320,
-            4560,
-            4800,
-            5040,
-            5280,
-            5520,
-            5760,
-            6000,
-            6240,
-            6480,
-            6720,
-            6960,
-            7200,
-            7440,
-            7680,
-            7920,
-            8160,
-            8400,
-            8640,
-            8880,
-            9120,
-            9360,
-            9600,
-            9840,
-            10080,
-        ),
+        "freq_array": freq_array,
+        "baseline_freq_array": baseline_freq_array,
         "background": options.background,
         "enable_textoverlay": True,
     }
