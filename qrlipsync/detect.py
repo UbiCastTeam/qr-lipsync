@@ -217,7 +217,7 @@ class QrLipsyncDetector:
                 self._on_spectrum(source, struct)
 
     def _on_barcode(self, elt_name, struct):
-        timestamp = struct.get_value("timestamp")
+        timestamp = struct.get_value("running-time")
         json_data = struct.get_value("symbol")
         if json_data:
             # FIXME: qroverlay appends a trailing comma which makes the json invalid {"TIMESTAMP":33333333,"BUFFERCOUNT":2,"FRAMERATE":"30/1","NAME":"CAM1",}
@@ -240,7 +240,7 @@ class QrLipsyncDetector:
             logger.warning("Could not get content of qrcode %s" % json_data)
 
     def _on_spectrum(self, elt_name, struct):
-        timestamp = struct.get_value("timestamp") - self._encoder_latency
+        timestamp = struct.get_value("running-time") - self._encoder_latency
         # there is a memory leak in gst.ValueList
         # https://bugzilla.gnome.org/show_bug.cgi?id=795305
         # tapping into the array attribute does not leak memory
