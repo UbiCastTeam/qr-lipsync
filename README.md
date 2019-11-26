@@ -35,7 +35,7 @@ PATH=$PATH:bin PYTHONPATH=. qr-lipsync-detect.py cam1-qrcode-blue-30.qt
 Or even
 ```
 sudo ln -s `pwd`/bin/*.py /usr/local/bin
-sudo ln -s `pwd`/qrlipsync /usr/lib/python3.7/site-packages/
+sudo ln -s `pwd`/qrlipsync `python -c "import site; print(site.getsitepackages()[0])"`
 ```
 
 ## Running tests
