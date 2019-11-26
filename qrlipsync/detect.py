@@ -33,6 +33,7 @@ class QrLipsyncDetector:
         self._result_filename = result_file
         self._result_file = open(result_file, "w")
         self._bands_count = 1024
+        self.band_width = self._samplerate / (2 * self._bands_count)
         self.last_freq = 0
         self.baseline_freq = 240
         self._first_tick_timestamp = -1
@@ -43,7 +44,7 @@ class QrLipsyncDetector:
         self.qrcode_count = 0
         self.qrcode_with_beep_count = 0
         self._tick_count = 0
-        spectrum_interval_ms = 3
+        spectrum_interval_ms = 7
         self.spectrum_interval_ns = spectrum_interval_ms * Gst.MSECOND
         framerate = self.media_info.get("avg_frame_rate")
         if framerate is not None:
@@ -243,30 +244,51 @@ class QrLipsyncDetector:
         else:
             logger.warning("Could not get content of qrcode %s" % json_data)
 
+    def get_magnitude_for_freq(self, magnitude, freq):
+        for i in range(self._bands_count):
+            low = int(self.band_width * i)
+            high = int(self.band_width * (i + 1))
+            if low <= freq <= high:
+                return magnitude[i]
+
+    def get_freq_of_max(self, magnitude):
+        freq = band_index = None
+        max_value = max(magnitude)
+        if max_value > self._threshold_db:
+            band_index = magnitude.index(max_value)
+            # self._samplerate / 2 is the nyquist frequency
+            band_start = band_index * self.band_width
+            band_end = (band_index + 1) * self.band_width
+            # frequency is the middle of the band with the maximum magnitude
+            freq = int((band_end - band_start) / 2 + band_start)
+        return freq, max_value, band_index
+
     def _on_spectrum(self, elt_name, struct):
         timestamp = struct.get_value("running-time") - self._encoder_latency
         # there is a memory leak in gst.ValueList
         # https://bugzilla.gnome.org/show_bug.cgi?id=795305
         # tapping into the array attribute does not leak memory
         magnitude = struct.get_value("magnitude").array
+
+        # detect audio frame drops
+        baseline_mag = self.get_magnitude_for_freq(magnitude, self.baseline_freq)
+        if not baseline_mag > self._threshold_db:
+            # TODO: notify dropped segments
+            result = {
+                "ELEMENTNAME": elt_name + "_frame_dropped",
+                "TIMESTAMP": timestamp,
+                "PEAK": self._max_magnitude,
+                "FREQ": self.last_freq,
+            }
+            self.write_line(json.dumps(result))
+
         # ignore lowest frequencies
-        ignore_n_lowest_bands = int(
-            self._min_freq / (self._samplerate / self._bands_count)
-        )
+        ignore_n_lowest_bands = int(self._min_freq / self.band_width)
         for i in range(ignore_n_lowest_bands):
             magnitude[i] = -60
 
-        print(magnitude)
-        max_value = max(magnitude)
-        if max_value > self._threshold_db:
-            band_index = magnitude.index(max_value)
-            # self._samplerate / 2 is the nyquist frequency
-            band_width = (self._samplerate / 2) / self._bands_count
-            band_start = band_index * band_width
-            band_end = (band_index + 1) * band_width
-            # frequency is the middle of the band with the maximum magnitude
-            freq = int((band_end - band_start) / 2 + band_start)
-
+        freq, max_value, band_index = self.get_freq_of_max(magnitude)
+        if freq:
             if freq > self._min_freq:
                 if freq == self.last_freq:
                     self._last_freq_count += 1

@@ -79,7 +79,7 @@ class QrLipsyncGenerator:
             )
         )
         if s.get("baseline_freq_array"):
-            audio_src += " ! amixer. audiotestsrc samplesperbuffer={samplerate} volume=0.05 num-buffers={duration} freq=%s ! audiomixer name=amixer".format(**s) % s["baseline_freq_array"][0]
+            audio_src += " ! amixer. audiotestsrc samplesperbuffer={samplerate} volume=0.1 num-buffers={duration} freq=%s ! audiomixer name=amixer".format(**s) % s["baseline_freq_array"][0]
         audio_caps = (
             'capsfilter caps="audio/x-raw, format=(string)S16LE, layout=(string)interleaved, rate=(int)%s, channels=(int)1"'
             % s["samplerate"]
