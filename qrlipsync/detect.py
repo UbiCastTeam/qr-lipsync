@@ -218,6 +218,9 @@ class QrLipsyncDetector:
 
     def _on_barcode(self, elt_name, struct):
         timestamp = struct.get_value("running-time")
+        if timestamp is None:
+            logger.warning('It seems that you are running a gstreamer version below 1.6.1, results might be unreliable')
+            timestamp = struct.get_value('timestamp')
         json_data = struct.get_value("symbol")
         if json_data:
             # FIXME: qroverlay appends a trailing comma which makes the json invalid {"TIMESTAMP":33333333,"BUFFERCOUNT":2,"FRAMERATE":"30/1","NAME":"CAM1",}
