@@ -201,7 +201,7 @@ class QrLipsyncDetector:
         self._result_file.close()
         logger.info("Wrote file %s" % self._result_filename)
         if not self.options.skip_results:
-            sys.exit(os.system("qr-lipsync-analyze.py %s" % self._result_filename))
+            sys.exit(os.system("qr-lipsync-analyze.py %s -q %s" % (self._result_filename, self.options.qrcode_name)))
         else:
             self.exit()
 

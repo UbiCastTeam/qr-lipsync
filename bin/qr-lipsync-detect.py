@@ -40,6 +40,14 @@ if __name__ == "__main__":
         help="display a live preview of the analyzed area",
         action="store_true",
     )
+
+    parser.add_argument(
+        "-q",
+        "--qrcode-name",
+        help="name of qrcode pattern to look after",
+        default="CAM1",
+    )
+
     parser.add_argument(
         "-v", "--verbosity", help="increase output verbosity", action="store_true"
     )
