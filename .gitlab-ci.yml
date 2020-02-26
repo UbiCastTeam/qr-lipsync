@@ -1,8 +1,28 @@
-test_job:
-
-    tags:
-        - builder-shell
-
-    script:
-        - docker pull archlinux/base
-        - docker build -t qrlipsync .
+image: registry.ubicast.net/docker/dind-compose
+services:
+  - docker:dind
+stages:
+  - build
+  - lint
+  - test
+before_script:
+  - echo $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+build:
+  stage: build
+  tags:
+    - dind
+  script:
+    - make build
+    - make push
+lint:
+  stage: lint
+  tags:
+    - dind
+  script:
+    - make lint
+test:
+  stage: test
+  tags:
+    - dind
+  script:
+    - make test
