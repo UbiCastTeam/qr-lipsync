@@ -14,13 +14,14 @@ RUN \
         git base-devel vim \
         gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav \
         qrencode zbar ffmpeg \
-        python-setuptools python-gobject gst-python
-
-RUN mkdir /src
-ADD . /src/qrlipsync
-WORKDIR /src
+        python-setuptools python-pip python-gobject gst-python
 
 RUN \
     git clone https://github.com/UbiCastTeam/gst-qroverlay.git && \
-    cd gst-qroverlay && ./autogen.sh && ./configure --prefix=/usr && make install && cd .. && \
-    cd qrlipsync && python -m unittest && python setup.py install --root=/
+    cd gst-qroverlay && ./autogen.sh && ./configure --prefix=/usr && make install && cd .. && rm -rf gst-qroverlay/ && \
+    mkdir src/
+
+COPY . /src/qrlipsync
+WORKDIR /src/qrlipsync
+
+RUN pip install -e '.[testing]'
