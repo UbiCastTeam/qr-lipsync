@@ -49,6 +49,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-t",
+        "--audio-threshold",
+        help="level threshold below which audio frequencies will be ignored",
+        type=float,
+        default=-48,
+    )
+
+    parser.add_argument(
         "-v", "--verbosity", help="increase output verbosity", action="store_true"
     )
     options = parser.parse_args()

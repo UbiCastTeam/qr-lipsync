@@ -71,7 +71,7 @@ class QrLipsyncDetector:
         self._start_time = 0
         self._end_time = 0
         self._json_length = 70
-        self._threshold_db = -48.0
+        self._threshold_db = self.options.audio_threshold
         self._min_freq = 200
         self._audio_duration = 0
         self._video_duration = 0
