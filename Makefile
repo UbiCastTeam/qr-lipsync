@@ -28,4 +28,4 @@ else
 endif
 
 generate:
-	docker run -v ${CURDIR}:/usr/src ${DOCKER_IMG_NAME} qr-lipsync-generate.py ${ARGS}
+	docker run -v ${CURDIR}:/usr/src ${DOCKER_IMG_NAME} qr-lipsync-generate.py --output-dir /usr/src ${ARGS}

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import sys
 import argparse
 import logging
@@ -29,6 +30,12 @@ if __name__ == "__main__":
         help="enable text overlay (shows timecode)",
         action="store_true",
         default=True,
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        help="output directory",
+        default=".",
     )
     parser.add_argument(
         "-q",
@@ -143,11 +150,11 @@ if __name__ == "__main__":
         )
         settings["acodec"] = "identity"
         settings["fileext"] = ".qt"
-        settings["output_file"] = "%s-qrcode-%s-%s.qt" % (
+        settings["output_file"] = os.path.join(options.output_dir, "%s-qrcode-%s-%s.qt" % (
             qrname,
             options.background,
             options.framerate,
-        )
+        ))
     elif video_format == "mp4":
         settings["muxer"] = "mp4mux"
         bitrate = 20000 if options.background == "snow" else 1000
@@ -156,11 +163,11 @@ if __name__ == "__main__":
             % bitrate
         )
         settings["acodec"] = "fdkaacenc"
-        settings["output_file"] = "%s-qrcode-%s-%s.mp4" % (
+        settings["output_file"] = os.path.join(options.output_dir, "%s-qrcode-%s-%s.mp4" % (
             qrname,
             options.background,
             options.framerate,
-        )
+        ))
 
     ml = GLib.MainLoop()
     qr_gen = QrLipsyncGenerator(settings, ml)
