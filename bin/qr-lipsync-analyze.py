@@ -13,25 +13,44 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Process QrCode and spectrum data file generated with qr-lipsync-detect.py"
     )
+
     parser.add_argument("input_file", help="filename of raw QrCode and spectrum data")
+
     parser.add_argument(
         "-q",
         "--qrcode-name",
         help="name of qrcode pattern to look after",
         default="CAM1",
     )
+
     parser.add_argument(
         "-c",
         "--custom-data-name",
         help="name of custom data embedded in qrcode to extract",
         default="TICKFREQ",
     )
+
     parser.add_argument(
-        "-v", "--verbosity", help="increase output verbosity", action="store_true"
+        "-v",
+        "--verbosity",
+        help="increase output verbosity",
+        action="store_true"
     )
+
     parser.add_argument(
-        "-n", "--no-report-files", help="do not write report files", action="store_true"
+        "--desync-threshold-frames",
+        help="tolerated desync (in frames); beyond this, qr-lipsync will exit with a non 0 exit status",
+        type=int,
+        default=0,
     )
+
+    parser.add_argument(
+        "-n",
+        "--no-report-files",
+        help="do not write report files",
+        action="store_true"
+    )
+
     options = parser.parse_args(sys.argv[1:])
 
     level = "DEBUG" if options.verbosity else "INFO"

@@ -11,6 +11,7 @@ class Options():
     no_report_files = True
     qrcode_name = 'CAM1'
     custom_data_name = 'TICKFREQ'
+    desync_threshold_frames = 0
 
 
 def setUpModule():

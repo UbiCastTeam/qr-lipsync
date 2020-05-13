@@ -57,6 +57,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--desync-threshold-frames",
+        help="tolerated desync (in frames); beyond this, qr-lipsync will exit with a non 0 exit status",
+        type=int,
+        default=0,
+    )
+
+    parser.add_argument(
         "-v", "--verbosity", help="increase output verbosity", action="store_true"
     )
     options = parser.parse_args()
