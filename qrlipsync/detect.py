@@ -92,7 +92,7 @@ class QrLipsyncDetector:
 
     def get_pipeline(self, media_file):
         pipeline = (
-            'filesrc location="%s" ! decodebin name=dec max-size-time=1000000000'
+            'filesrc location="%s" ! decodebin name=dec max-size-time=5000000000'
             % (media_file)
         )
         video_width, video_height = self.media_info["width"], self.media_info["height"]
