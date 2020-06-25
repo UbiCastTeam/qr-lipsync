@@ -14,7 +14,7 @@ RUN \
         git base-devel vim \
         gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav \
         qrencode zbar ffmpeg \
-        python-setuptools python-pip python-gobject gst-python
+        python-setuptools python-pip python-gobject gst-python python-numpy
 
 RUN \
     git clone https://github.com/UbiCastTeam/gst-qroverlay.git && \
