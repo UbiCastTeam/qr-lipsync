@@ -6,6 +6,7 @@ import sys
 import json
 import statistics
 import fractions
+import numpy as np
 
 logger = logging.getLogger("qr-lipsync-analyze")
 
@@ -50,6 +51,7 @@ class QrLipsyncAnalyzer:
         self.all_qrcodes_with_freq = list()
         self.all_qrcode_framerates = list()
         self.audio_video_delays_ms = list()
+        self.audio_video_delays_tc = list()
 
     def start(self):
         logger.info("Reading file %s" % self._input_file)
@@ -221,6 +223,7 @@ class QrLipsyncAnalyzer:
                     logger.debug("Found beep at %ss, diff: %sms" % (ts, diff_ms))
                     self.write_graphfile("%s\t%s" % (ts, diff_ms))
                     self.audio_video_delays_ms.append(diff_ms)
+                    self.audio_video_delays_tc.append(ts)
                     if abs(diff_ms) > abs(self.max_delay_ms):
                         self.max_delay_ms = diff_ms
                         self.max_delay_ts = ts
@@ -325,7 +328,7 @@ class QrLipsyncAnalyzer:
             "median_av_delay_frames": median_av_delay_frames,
             "avg_av_delay_ms": avg_av_delay_ms,
             "avg_av_delay_frames": avg_av_delay_frames,
-            "av_delay_accel": self.get_accel(self.audio_video_delays_ms),
+            "av_delay_accel": self.get_accel(self.audio_video_delays_tc, self.audio_video_delays_ms),
             "max_delay_ms": self.max_delay_ms,
             "max_delay_ts": self.max_delay_ts,
             "video_duration": self.video_duration_s,
@@ -364,9 +367,15 @@ class QrLipsyncAnalyzer:
     def get_ms_to_frames(self, value):
         return int(round(value / self.frame_duration_ms, 1))
 
-    def get_accel(self, values):
-        if len(values):
-            return int(round((values[-1] - values[0]) / self.video_duration_s))
+    def get_accel(self, x_values, y_values):
+        if len(y_values):
+            order = 1
+            result = np.polyfit(x_values, y_values, order)
+            # we assume that beeps are every second, so this is a trend per second
+            slope = result[-2]
+            logger.debug("%.2f ms/s accel slope found" % slope)
+            # ignore values below 1ms
+            return int(slope)
         else:
             return NAN
 
