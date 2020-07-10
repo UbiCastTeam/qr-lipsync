@@ -101,7 +101,7 @@ if __name__ == "__main__":
         dirname = os.path.dirname(media_file)
         media_prefix = os.path.splitext(os.path.basename(media_file))[0]
         result_file = os.path.join(dirname, "%s_data.txt" % (media_prefix))
-        d = QrLipsyncDetector.create(media_file, result_file, options, mainloop)
+        d = QrLipsyncDetector(media_file, result_file, options, mainloop)
         if d:
             GLib.idle_add(d.start)
             try:
