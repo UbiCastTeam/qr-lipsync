@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-import shutil
 import sys
 import time
 import subprocess
@@ -11,9 +10,11 @@ from fractions import Fraction
 import gi
 
 gi.require_version("Gst", "1.0")
+gi.require_version("GstPbutils", "1.0")
 # We don't want to use hw accel since it seems to be messing with latency
 os.environ["LIBVA_DRIVER_NAME"] = "fakedriver"
 from gi.repository import Gst  # noqa
+from gi.repository import GstPbutils  # noqa
 
 Gst.init(None)
 
@@ -302,34 +303,31 @@ class QrLipsyncDetector:
         return result
 
     def get_media_info(self, media_file):
+        uri = Gst.filename_to_uri(os.path.realpath(media_file))
         try:
-            ffprobe = shutil.which("ffprobe")
-        except Exception:
-            # python2
-            from distutils.spawn import find_executable
+            info = GstPbutils.Discoverer.new(10 * Gst.SECOND).discover_uri(uri)
+        except gi.repository.GLib.Error as e:
+            sys.exit("Could not discover file: %s (%s)" % (media_file, e))
 
-            ffprobe = find_executable("ffprobe")
-        if ffprobe:
-            cmd = "ffprobe -v error -select_streams v -show_entries stream=width,height,avg_frame_rate,duration -of default=noprint_wrappers=1 -print_format json"
-            result = self.run_subprocess(cmd, media_file)
-            vjres = json.loads(result)["streams"][0]
-            if not vjres.get("duration"):
-                cmd = "ffprobe -v error -select_streams v -show_format_entry duration -of default=noprint_wrappers=1 -print_format json"
-                result = self.run_subprocess(cmd, media_file)
-                vjres["duration"] = json.loads(result)["format"]["duration"]
-            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate,codec_name -of default=noprint_wrappers=1 -print_format json"
-            result = self.run_subprocess(cmd, media_file)
-            ajres = json.loads(result)["streams"]
-            if ajres:
-                ajres = ajres[0]
-                vjres["sample_rate"] = ajres["sample_rate"]
-                vjres["a_codec"] = ajres["codec_name"]
-            else:
-                logger.error("No audio track found, cannot detect sync")
-            return vjres
-        else:
-            logger.error("ffprobe is required")
-            sys.exit()
+        try:
+            vinfo = info.get_video_streams()[0]
+        except IndexError:
+            sys.exit("File contains no video stream")
+
+        result = {
+            'width': vinfo.get_width(),
+            'height': vinfo.get_height(),
+            'avg_frame_rate': '%s/%s' % (vinfo.get_framerate_num(), vinfo.get_framerate_denom()),
+            'duration': str(info.get_duration() / Gst.SECOND),
+        }
+
+        try:
+            ainfo = info.get_audio_streams()[0]
+            result["sample_rate"] = ainfo.get_sample_rate()
+            result["a_codec"] = GstPbutils.pb_utils_get_codec_description(ainfo.get_caps()).lower().replace("mpeg-4 aac", "aac")
+        except IndexError:
+            logger.warning("File contains no audio stream, cannot detect sync")
+        return result
 
     def disconnect_probes(self):
         logger.debug("Disconnecting probes")
