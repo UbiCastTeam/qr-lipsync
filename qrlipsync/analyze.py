@@ -348,7 +348,7 @@ class QrLipsyncAnalyzer:
                     logger.error(f"AV sync metric {k} is over {self.options.desync_threshold_frames} ({results[k]}), exiting with error")
                     return 1
         if results.get("av_delay_accel", NAN) not in [0, NAN]:
-            logger.error("Non-zero delay accel, audio or video is drifting by {results['av_delay_accel']} ms")
+            logger.error(f"Non-zero delay accel, audio or video is drifting by {results['av_delay_accel']} ms")
             return 1
         return 0
 
@@ -368,13 +368,20 @@ class QrLipsyncAnalyzer:
         return int(round(value / self.frame_duration_ms, 1))
 
     def get_accel(self, x_values, y_values):
-        if len(y_values):
-            order = 1
-            result = np.polyfit(x_values, y_values, order)
-            # we assume that beeps are every second, so this is a trend per second
-            slope = result[-2]
-            logger.debug("%.2f ms/s accel slope found" % slope)
-            # ignore values below 1ms
+        # we need enough samples so that +/- 1 frame is negligible
+        num_samples = len(y_values)
+        if num_samples:
+            min_values = int(os.environ.get("QRLIPSYNC_MIN_ACCEL_SAMPLES", int(self.frame_duration_ms * 2)))
+            if num_samples < min_values:
+                logger.info(f"Got only {num_samples} samples, we need at least {min_values} samples to detect drifts")
+                return 0
+            else:
+                order = 1
+                result = np.polyfit(x_values, y_values, order)
+                # we assume that beeps are every second, so this is a trend per second
+                slope = result[-2]
+                logger.debug("%.2f ms/s accel slope found" % slope)
+                # ignore values below 1ms
             return int(slope)
         else:
             return NAN
@@ -428,7 +435,7 @@ class QrLipsyncAnalyzer:
                     self.get_timecode_from_seconds(self.max_delay_ts),
                 )
             self.write_logfile(string_median_delay)
-            if results_dict["av_delay_accel"]:
+            if results_dict["av_delay_accel"] not in [0, NAN]:
                 self.write_logfile(
                     "Warning, %s ms/s drift detected" % results_dict["av_delay_accel"]
                 )

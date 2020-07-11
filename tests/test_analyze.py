@@ -5,6 +5,9 @@ from unittest import TestCase
 from qrlipsync.analyze import QrLipsyncAnalyzer
 import logging
 import sys
+import os
+
+os.environ["QRLIPSYNC_MIN_ACCEL_SAMPLES"] = "1"
 
 
 class Options():
