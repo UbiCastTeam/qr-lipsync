@@ -1,7 +1,6 @@
 VIDEO ?= video.mp4
 VIDEO_FOUND := $(shell test -f ${VIDEO} 2> /dev/null; echo $$?)
-
-DOCKER_IMG_NAME ?= registry.ubicast.net/devtools/qr-lipsync
+DOCKER_IMG_NAME ?= registry.ubicast.net/devtools/qr-lipsync:${CI_COMMIT_REF_NAME}
 ARGS ?=
 
 build:
