@@ -128,6 +128,9 @@ class QrLipsyncGenerator:
             qroverlay_element_name = "qroverlay"
         if not self.settings["disable_audio"]:
             data_name = s.get("extra_data_name", "tickfreq")
+            qroverlay_element_name = "debugqroverlay"
+            if not Gst.ElementFactory.find(qroverlay_element_name):
+                qroverlay_element_name = "qroverlay"
             qroverlay = (
                 '%s x=%s y=%s name=%s qrcode-error-correction=%s extra-data-span-buffers=%s extra-data-interval-buffers=%s extra-data-name=%s extra-data-array="%s" pixel-size=%s'
                 % (
