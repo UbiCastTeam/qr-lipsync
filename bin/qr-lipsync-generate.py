@@ -51,8 +51,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-f",
         "--format",
-        help="video format: qt/h264/pcm (default) or mp4/h264/aac",
-        choices=["mp4", "qt"],
+        help="video format: qt/h264/pcm (default), mp4/h264/aac or webm/vp8/vorbis",
+        choices=["mp4", "qt", 'webm+vp8', 'webm+vp9'],
         default="qt",
     )
     parser.add_argument(
@@ -141,6 +141,10 @@ if __name__ == "__main__":
     }
 
     video_format = options.format
+    outname = os.path.join(
+        options.output_dir, "%s-qrcode-%s-%s"
+        % (qrname, options.background, options.framerate,)
+    )
     if video_format == "qt":
         settings["muxer"] = "qtmux"
         bitrate = 20000 if options.background == "snow" else 1000
@@ -150,11 +154,6 @@ if __name__ == "__main__":
         )
         settings["acodec"] = "identity"
         settings["fileext"] = ".qt"
-        settings["output_file"] = os.path.join(options.output_dir, "%s-qrcode-%s-%s.qt" % (
-            qrname,
-            options.background,
-            options.framerate,
-        ))
     elif video_format == "mp4":
         settings["muxer"] = "mp4mux"
         bitrate = 20000 if options.background == "snow" else 1000
@@ -163,11 +162,20 @@ if __name__ == "__main__":
             % bitrate
         )
         settings["acodec"] = "fdkaacenc"
-        settings["output_file"] = os.path.join(options.output_dir, "%s-qrcode-%s-%s.mp4" % (
-            qrname,
-            options.background,
-            options.framerate,
-        ))
+        settings["fileext"] = ".mp4"
+    elif video_format.startswith("webm"):
+        vcodec = video_format.split('+')[1]
+        settings["muxer"] = "webmmux"
+        bitrate = 20480000 if options.background == "snow" else 1024000
+        settings["vcodec"] = (
+            "%senc target-bitrate=%s deadline=1 error-resilient=default threads=12 cpu-used=-16" % (
+                vcodec, bitrate)
+        )
+        settings["acodec"] = "audioconvert ! vorbisenc"
+        settings["fileext"] = ".webm"
+        outname += '-' + vcodec
+
+    settings["output_file"] = outname + settings['fileext']
 
     ml = GLib.MainLoop()
     qr_gen = QrLipsyncGenerator(settings, ml)
