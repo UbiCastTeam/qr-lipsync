@@ -82,6 +82,38 @@ class AnalyzeTest(TestCase):
         self.assertTrue(int(r['audio_duration']) == 30)
         self.assertTrue(r['matching_missing'] == 0)
 
+    def test_generate_and_analyze_webm_vp8(self):
+        self.assertTrue(self.run_cmd('qr-lipsync-generate.py -f webm+vp8')[0] == 0)
+        self.assertTrue(self.run_cmd('qr-lipsync-detect.py -s cam1-qrcode-blue-30-vp8.webm')[0] == 0)
+        self.assertTrue(self.run_cmd('qr-lipsync-analyze.py cam1-qrcode-blue-30-vp8_data.txt')[0] == 0)
+        with open('cam1-qrcode-blue-30-vp8_data.report.json', 'r') as f:
+            r = json.load(f)
+
+        self.assertEqual(r['duplicated_frames'], 0)
+        self.assertEqual(r['dropped_frames'], 0)
+        self.assertEqual(r['total_frames'], 900)
+        self.assertEqual(r['avg_real_framerate'], 29.97)
+        self.assertLess(abs(r['median_av_delay_ms']), 10)
+        self.assertEqual(r['video_duration'], 29.999)
+        self.assertEqual(int(r['audio_duration']), 30)
+        self.assertEqual(r['matching_missing'], 0)
+
+    def test_generate_and_analyze_webm_vp9(self):
+        self.assertTrue(self.run_cmd('qr-lipsync-generate.py -f webm+vp9')[0] == 0)
+        self.assertTrue(self.run_cmd('qr-lipsync-detect.py -s cam1-qrcode-blue-30-vp9.webm')[0] == 0)
+        self.assertTrue(self.run_cmd('qr-lipsync-analyze.py cam1-qrcode-blue-30-vp9_data.txt')[0] == 0)
+        with open('cam1-qrcode-blue-30-vp9_data.report.json', 'r') as f:
+            r = json.load(f)
+
+        self.assertEqual(r['duplicated_frames'], 0)
+        self.assertEqual(r['dropped_frames'], 0)
+        self.assertEqual(r['total_frames'], 900)
+        self.assertEqual(r['avg_real_framerate'], 29.97)
+        self.assertLess(abs(r['median_av_delay_ms']), 10)
+        self.assertEqual(r['video_duration'], 29.999)
+        self.assertEqual(int(r['audio_duration']), 30)
+        self.assertEqual(r['matching_missing'], 0)
+
     def test_generate_and_analyze_noaudio(self):
         self.assertTrue(self.run_cmd('qr-lipsync-generate.py -a')[0] == 0)
         self.assertTrue(self.run_cmd('qr-lipsync-detect.py -s cam1-qrcode-blue-30.qt')[0] == 0)
