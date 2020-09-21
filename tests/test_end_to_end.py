@@ -94,7 +94,7 @@ class AnalyzeTest(TestCase):
         self.assertEqual(r['total_frames'], 900)
         self.assertEqual(r['avg_real_framerate'], 29.97)
         self.assertLess(abs(r['median_av_delay_ms']), 10)
-        self.assertEqual(r['video_duration'], 29.999)
+        self.assertEqual(r['video_duration'], 30.0)
         self.assertEqual(int(r['audio_duration']), 30)
         self.assertEqual(r['matching_missing'], 0)
 
@@ -110,7 +110,7 @@ class AnalyzeTest(TestCase):
         self.assertEqual(r['total_frames'], 900)
         self.assertEqual(r['avg_real_framerate'], 29.97)
         self.assertLess(abs(r['median_av_delay_ms']), 10)
-        self.assertEqual(r['video_duration'], 29.999)
+        self.assertEqual(r['video_duration'], 30.0)
         self.assertEqual(int(r['audio_duration']), 30)
         self.assertEqual(r['matching_missing'], 0)
 
