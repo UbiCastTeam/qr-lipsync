@@ -7,17 +7,20 @@ ARGS ?=
 build:
 	docker build -t ${DOCKER_IMG_NAME} .
 
+pull:
+	docker pull ${DOCKER_IMG_NAME}
+
 push:
 	docker push ${DOCKER_IMG_NAME}
 
 shell:
-	docker run -ti -v ${CURDIR}:/usr/src ${DOCKER_IMG_NAME} /bin/bash
+	docker run -ti -v ${CURDIR}:/src/qrlipsync ${DOCKER_IMG_NAME} /bin/bash
 
 lint:
-	docker run -v ${CURDIR}:/usr/src ${DOCKER_IMG_NAME} flake8
+	docker run -v ${CURDIR}:/src/qrlipsync ${DOCKER_IMG_NAME} flake8
 
 test:
-	docker run -v ${CURDIR}:/usr/src ${DOCKER_IMG_NAME} pytest
+	docker run -v ${CURDIR}:/src/qrlipsync ${DOCKER_IMG_NAME} pytest
 
 analyze:
 ifeq (${VIDEO_FOUND}, 1)
