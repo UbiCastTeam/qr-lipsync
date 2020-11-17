@@ -176,7 +176,13 @@ class QrLipsyncDetector:
 
     def on_video_fakesink_buffer(self, pad, info, data):
         buf = info.get_buffer()
-        self._video_duration = buf.pts + buf.duration
+        duration = buf.duration
+        if duration == Gst.CLOCK_TIME_NONE:
+            if self.framerate:
+                duration = int(Gst.SECOND / self.framerate)
+            else:
+                duration = 0
+        self._video_duration = buf.pts + duration
         return True
 
     def _on_eos(self, bus, message):
