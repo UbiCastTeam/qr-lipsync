@@ -323,6 +323,7 @@ class QrLipsyncAnalyzer:
                 self.dropped_frames_count, self.qrcode_frames_count
             ),
             "total_frames": self.qrcode_frames_count,
+            "total_beeps": len(self.all_audio_beeps),
             "avg_real_framerate": self.get_mean(self.all_qrcode_framerates, 2),
             "median_av_delay_ms": median_av_delay_ms,
             "median_av_delay_frames": median_av_delay_frames,
