@@ -45,6 +45,7 @@ class QrLipsyncDetector:
         spectrum_interval_ms = 3
         self.spectrum_interval_ns = spectrum_interval_ms * Gst.MSECOND
         framerate = self.media_info.get("avg_frame_rate")
+
         if framerate is not None:
             # assume audio ticks are at least 1 video frame long
             self.framerate = Fraction(self.media_info["avg_frame_rate"])
@@ -52,7 +53,11 @@ class QrLipsyncDetector:
         else:
             # assume 60 fps
             frame_dur_ms = 1000 / 60
-        self.ticks_count_threshold = int(frame_dur_ms / spectrum_interval_ms)
+
+        if options.expected_beep_duration:
+            self.ticks_count_threshold = int(options.expected_beep_duration / spectrum_interval_ms)
+        else:
+            self.ticks_count_threshold = int(frame_dur_ms / spectrum_interval_ms)
 
         # FIXME: fdk adds 2048 samples of priming samples (silence) which adds 42ms of latency
         # aacenc adds 1024 samples (21ms)
@@ -234,6 +239,11 @@ class QrLipsyncDetector:
             qrcode = json.loads(json_data.replace(",}", "}"))
             if isinstance(qrcode, dict):
                 self.qrcode_count += 1
+                if self.qrcode_count == 1:
+                    real_framerate = float(Fraction(qrcode["FRAMERATE"]))
+                    beep_dur = int(1000 / real_framerate)
+                    if real_framerate != self.framerate:
+                        logger.warning(f"Input file framerate ({self.framerate}) differs from original sample framerate ({real_framerate}), you should run this with --expected-beep-duration {beep_dur} or beeps won't be detected")
                 qrcode["ELEMENTNAME"] = elt_name
                 qrcode["VIDEOTIMESTAMP"] = timestamp
                 if qrcode.get("TICKFREQ"):

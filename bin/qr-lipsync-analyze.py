@@ -45,6 +45,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--expected-beep-duration",
+        help="Duration in ms of a beep (if 0, will consider 1 video frame duration based on the framerate of the video)",
+        type=float,
+        default=0,
+    )
+
+    parser.add_argument(
         "-n",
         "--no-report-files",
         help="do not write report files",

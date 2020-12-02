@@ -150,12 +150,13 @@ class QrLipsyncAnalyzer:
         qrcode_framerate = 0
 
         last_qrcode = None
+        logger.info(f"Detected {len(self.all_qrcodes)} qrcodes and {len(self.all_audio_beeps)} beeps")
         for qrcode in self.all_qrcodes:
             if not self.frame_duration_ms:
                 frame_duration = 1 / qrcode["qrcode_framerate"]
                 self.frame_duration_ms = frame_duration * 1000
                 logger.info(
-                    "Detected frame duration of %.1fms" % (self.frame_duration_ms)
+                    "Detected original sample frame duration of %.1fms" % (self.frame_duration_ms)
                 )
 
             timestamp = qrcode["decoded_timestamp"]

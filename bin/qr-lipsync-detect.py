@@ -15,18 +15,24 @@ if __name__ == "__main__":
         description="Generate videos suitable for measuring lipsync with qrcodes",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("input_file", help="filename of video to analyze")
+    parser.add_argument(
+        "input_file",
+        help="filename of video to analyze"
+    )
+
     parser.add_argument(
         "-a",
         "--area",
         help="area in x1:y1:x2:y2 format (in percent) to look qrcodes for; example: 0:30:30:80; reference is top left corner",
     )
+
     parser.add_argument(
         "-s",
         "--skip-results",
         help="do not display results right after analysis",
         action="store_true",
     )
+
     parser.add_argument(
         "-d",
         "--downscale-width",
@@ -34,6 +40,7 @@ if __name__ == "__main__":
         default=320,
         type=int,
     )
+
     parser.add_argument(
         "-p",
         "--preview",
@@ -64,9 +71,21 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-v", "--verbosity", help="increase output verbosity", action="store_true"
+        "--expected-beep-duration",
+        help="Duration in ms of a beep (if 0, will consider 1 video frame duration based on the framerate of the video)",
+        type=float,
+        default=0,
     )
+
+    parser.add_argument(
+        "-v",
+        "--verbosity",
+        help="increase output verbosity",
+        action="store_true"
+    )
+
     options = parser.parse_args()
+
     verbosity = getattr(logging, "DEBUG" if options.verbosity else "INFO")
 
     logging.basicConfig(
