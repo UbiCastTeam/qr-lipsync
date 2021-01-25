@@ -52,7 +52,7 @@ To make it easier to get started, a docker-based execution is made possible.
 
 First, build the docker image with:
 ```
-make build_docker_img
+make build
 ```
 
 Then generate a video with:
