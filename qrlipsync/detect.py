@@ -88,7 +88,10 @@ class QrLipsyncDetector:
 
         self.size = 0
 
-        self.pipeline_str = self.get_pipeline(self._media_file)
+        self._uri_media_file = self._media_file
+        if '://' not in self._uri_media_file:
+            self._uri_media_file = Gst.filename_to_uri(self._media_file)
+        self.pipeline_str = self.get_pipeline(self._uri_media_file)
         self.pipeline = Gst.parse_launch(self.pipeline_str)
 
     def exit(self):
@@ -96,10 +99,7 @@ class QrLipsyncDetector:
         self.mainloop.quit()
 
     def get_pipeline(self, media_file):
-        pipeline = (
-            'filesrc location="%s" ! decodebin name=dec max-size-time=5000000000'
-            % (media_file)
-        )
+        pipeline = f'uridecodebin uri={media_file} name=dec buffer-duration=5000000000'
         video_width, video_height = self.media_info["width"], self.media_info["height"]
         if self.options.area:
             coords = [x1, y1, x2, y2] = [int(i) for i in self.options.area.split(":")]
