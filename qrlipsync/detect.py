@@ -276,6 +276,10 @@ class QrLipsyncDetector:
                 self._on_barcode(source, struct)
             elif sname == "spectrum":
                 self._on_spectrum(source, struct)
+        elif t == Gst.MessageType.WARNING:
+            warning = message.parse_warning()
+            if warning and warning.gerror and warning.gerror.matches(Gst.ParseError.quark(), Gst.ParseError.DELAYED_LINK):
+                self._on_eos(bus, message)
 
     def _on_barcode(self, elt_name, struct):
         timestamp = struct.get_value("running-time")
