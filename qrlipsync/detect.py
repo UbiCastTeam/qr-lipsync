@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 import shutil
-import sys
 import time
 import subprocess
 import logging
@@ -22,10 +21,54 @@ logger = logging.getLogger("detector")
 QUEUE_OPTS = "max-size-buffers=10 max-size-bytes=0 max-size-time=0"
 
 
+def run_subprocess(cmd, filename):
+    fields = cmd.split(" ")
+    fields.append(filename)
+    result = subprocess.check_output(fields, universal_newlines=True)
+    return result
+
+
+def get_media_info(media_file):
+    result = None
+    try:
+        ffprobe = shutil.which("ffprobe")
+    except Exception:
+        # python2
+        from distutils.spawn import find_executable
+
+        ffprobe = find_executable("ffprobe")
+    if ffprobe:
+        cmd = "ffprobe -v error -select_streams v -show_entries stream=width,height,avg_frame_rate,duration -of default=noprint_wrappers=1 -print_format json"
+        try:
+            cmd_result = run_subprocess(cmd, media_file)
+        except Exception:
+            cmd_result = None
+        if cmd_result:
+            vjres = json.loads(cmd_result)["streams"][0]
+            if not vjres.get("duration"):
+                cmd = "ffprobe -v error -select_streams v -show_format_entry duration -of default=noprint_wrappers=1 -print_format json"
+                cmd_result = run_subprocess(cmd, media_file)
+                vjres["duration"] = json.loads(cmd_result)["format"]["duration"]
+            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate,codec_name -of default=noprint_wrappers=1 -print_format json"
+            cmd_result = run_subprocess(cmd, media_file)
+            ajres = json.loads(cmd_result)["streams"]
+            if ajres:
+                ajres = ajres[0]
+                vjres["sample_rate"] = ajres["sample_rate"]
+                vjres["a_codec"] = ajres["codec_name"]
+            else:
+                logger.error("No audio track found, cannot detect sync")
+            result = vjres
+    else:
+        logger.error("ffprobe is required")
+    return result
+
+
 class QrLipsyncDetector:
-    def __init__(self, media_file, result_file, options, mainloop):
+    def __init__(self, media_file, result_file, options, mainloop, media_info):
+        self.analyze_returncode = None
         self.options = options
-        self.media_info = self.get_media_info(media_file)
+        self.media_info = media_info
         self._samplerate = int(self.media_info.get("sample_rate", 0))
         self._media_duration = float(self.media_info["duration"])
         self.mainloop = mainloop
@@ -93,6 +136,14 @@ class QrLipsyncDetector:
             self._uri_media_file = Gst.filename_to_uri(self._media_file)
         self.pipeline_str = self.get_pipeline(self._uri_media_file)
         self.pipeline = Gst.parse_launch(self.pipeline_str)
+
+    @classmethod
+    def create(qrlipsyncdetector, media_file, result_file, options, mainloop):
+        result = None
+        media_info = get_media_info(media_file)
+        if media_info:
+            result = qrlipsyncdetector(media_file, result_file, options, mainloop, media_info)
+        return result
 
     def exit(self):
         self.pipeline.set_state(Gst.State.NULL)
@@ -212,10 +263,8 @@ class QrLipsyncDetector:
         self._result_file.close()
         logger.info("Wrote file %s" % self._result_filename)
         if not self.options.skip_results:
-            returncode = os.WEXITSTATUS(os.system("qr-lipsync-analyze.py %s -q %s --desync-threshold-frames %s" % (self._result_filename, self.options.qrcode_name, self.options.desync_threshold_frames)))
-            sys.exit(returncode)
-        else:
-            self.exit()
+            self.analyze_returncode = os.WEXITSTATUS(os.system("qr-lipsync-analyze.py %s -q %s --desync-threshold-frames %s" % (self._result_filename, self.options.qrcode_name, self.options.desync_threshold_frames)))
+        self.exit()
 
     def _on_message(self, bus, message):
         t = message.type
@@ -310,42 +359,6 @@ class QrLipsyncDetector:
                     )
                     self._tick_count += 1
                     self.write_line(json.dumps(result))
-
-    def run_subprocess(self, cmd, filename):
-        fields = cmd.split(" ")
-        fields.append(filename)
-        result = subprocess.check_output(fields, universal_newlines=True)
-        return result
-
-    def get_media_info(self, media_file):
-        try:
-            ffprobe = shutil.which("ffprobe")
-        except Exception:
-            # python2
-            from distutils.spawn import find_executable
-
-            ffprobe = find_executable("ffprobe")
-        if ffprobe:
-            cmd = "ffprobe -v error -select_streams v -show_entries stream=width,height,avg_frame_rate,duration -of default=noprint_wrappers=1 -print_format json"
-            result = self.run_subprocess(cmd, media_file)
-            vjres = json.loads(result)["streams"][0]
-            if not vjres.get("duration"):
-                cmd = "ffprobe -v error -select_streams v -show_format_entry duration -of default=noprint_wrappers=1 -print_format json"
-                result = self.run_subprocess(cmd, media_file)
-                vjres["duration"] = json.loads(result)["format"]["duration"]
-            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate,codec_name -of default=noprint_wrappers=1 -print_format json"
-            result = self.run_subprocess(cmd, media_file)
-            ajres = json.loads(result)["streams"]
-            if ajres:
-                ajres = ajres[0]
-                vjres["sample_rate"] = ajres["sample_rate"]
-                vjres["a_codec"] = ajres["codec_name"]
-            else:
-                logger.error("No audio track found, cannot detect sync")
-            return vjres
-        else:
-            logger.error("ffprobe is required")
-            sys.exit()
 
     def disconnect_probes(self):
         logger.debug("Disconnecting probes")
