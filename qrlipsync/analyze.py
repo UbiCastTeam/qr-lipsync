@@ -78,7 +78,7 @@ class QrLipsyncAnalyzer:
             self.check_av_sync()
             self.check_video_stats()
             result = self.check_qrcode_names()
-        return result
+        return result == 0
 
     def close_files(self):
         if not self.options.no_report_files:
