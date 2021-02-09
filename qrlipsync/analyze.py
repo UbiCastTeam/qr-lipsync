@@ -361,8 +361,18 @@ class QrLipsyncAnalyzer:
             return 1
         return 0
 
+    def try_mean(self, list):
+        result = 0
+        if list:
+            try:
+                result = statistics.mean(list)
+            except Exception as e:
+                logger.error(f'statistics.mean failed: {e}')
+                result = -1
+        return result
+
     def get_mean(self, list, ndigits=2):
-        return round(statistics.mean(list), ndigits)
+        return round(self.try_mean(list), ndigits)
 
     def get_median(self, list, ndigits=2):
         if ndigits != 0:
