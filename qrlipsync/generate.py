@@ -6,8 +6,8 @@ import logging
 
 import gi
 
-gi.require_version("Gst", "1.0")  # noqa
-from gi.repository import GObject, Gst
+gi.require_version("Gst", "1.0")
+from gi.repository import GObject, Gst  # noqa
 
 Gst.init(None)
 
