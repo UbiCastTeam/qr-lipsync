@@ -70,10 +70,12 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, sys.exit)
 
     input_file = options.input_file
+    exit_code = 0
     if os.path.isfile(input_file):
         a = QrLipsyncAnalyzer(input_file, options)
-        a.start()
-        a.show_summary_and_exit()
+        if a.start():
+            exit_code = a.show_summary_and_exit()
     else:
         logger.error("File %s not found" % options.input_file)
-        sys.exit(1)
+        exit_code = 1
+    sys.exit(exit_code)
