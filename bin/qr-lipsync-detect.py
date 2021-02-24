@@ -95,17 +95,22 @@ if __name__ == "__main__":
     )
 
     media_file = options.input_file
+    exit_code = 0
     mainloop = GLib.MainLoop()
     if os.path.isfile(media_file):
         dirname = os.path.dirname(media_file)
         media_prefix = os.path.splitext(os.path.basename(media_file))[0]
         result_file = os.path.join(dirname, "%s_data.txt" % (media_prefix))
-        d = QrLipsyncDetector(media_file, result_file, options, mainloop)
-        GLib.idle_add(d.start)
-        try:
-            mainloop.run()
-        except KeyboardInterrupt:
-            logger.info("Ctrl+C hit, stopping")
-            d.exit()
+        d = QrLipsyncDetector.create(media_file, result_file, options, mainloop)
+        if d:
+            GLib.idle_add(d.start)
+            try:
+                mainloop.run()
+            except KeyboardInterrupt:
+                logger.info("Ctrl+C hit, stopping")
+                d.exit()
+            if d.analyze_returncode:
+                exit_code = d.analyze_returncode
     else:
         logger.error("File %s not found" % media_file)
+    sys.exit(exit_code)

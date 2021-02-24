@@ -2,7 +2,6 @@
 import time
 import logging
 import os
-import sys
 import json
 import statistics
 import fractions
@@ -54,6 +53,7 @@ class QrLipsyncAnalyzer:
         self.audio_video_delays_tc = list()
 
     def start(self):
+        result = 0
         logger.info("Reading file %s" % self._input_file)
         begin = time.time()
 
@@ -67,16 +67,18 @@ class QrLipsyncAnalyzer:
                 fd_input_file.seek(0)
             except Exception as e:
                 logger.error("Could not seek at the begining : %s" % e)
-            line = self.read_and_parse_line(fd_input_file)
-            while line:
+            result, line = self.read_and_parse_line(fd_input_file)
+            while line and result == 0:
                 if len(line) > 0:
                     self.parse_line(line)
-                line = self.read_and_parse_line(fd_input_file)
+                result, line = self.read_and_parse_line(fd_input_file)
 
-        logger.info("Finished reading, took %is" % (time.time() - begin))
-        self.check_av_sync()
-        self.check_video_stats()
-        self.check_qrcode_names()
+        if result == 0:
+            logger.info("Finished reading, took %is" % (time.time() - begin))
+            self.check_av_sync()
+            self.check_video_stats()
+            result = self.check_qrcode_names()
+        return result == 0
 
     def close_files(self):
         if not self.options.no_report_files:
@@ -128,6 +130,7 @@ class QrLipsyncAnalyzer:
         return "%i:%i:%.3f" % (hours, minutes, seconds)
 
     def check_qrcode_names(self):
+        result = 0
         if self.expected_qrcode_name not in self.qrcode_names:
             logger.warning("No expected qrcode %s detected" % self.expected_qrcode_name)
             if self.qrcode_names:
@@ -136,7 +139,8 @@ class QrLipsyncAnalyzer:
                     % (",".join(self.qrcode_names), self.qrcode_names[0])
                 )
             logger.error("Exiting with error")
-            sys.exit(1)
+            result = 1
+        return result
 
     def check_video_stats(self):
         logger.info("Checking video stats")
@@ -268,16 +272,19 @@ class QrLipsyncAnalyzer:
                 self.video_duration_s = round(float(line["VIDEODURATION"]) / SECOND, 3)
 
     def read_and_parse_line(self, fd_input_file):
+        result = 0
+        json_line = None
         try:
             line = fd_input_file.readline()
             if line:
                 try:
-                    return json.loads(line)
+                    return result, json.loads(line)
                 except Exception as e:
                     print("Failed to parse line %s : %s" % (repr(line), e))
         except UnicodeDecodeError:
             print("This file is not a text file, exiting")
-            sys.exit(1)
+            result = 1
+        return result, json_line
 
     def write_line(self, line_content, dfile):
         if not self.options.no_report_files:
@@ -478,8 +485,5 @@ class QrLipsyncAnalyzer:
             with open(self._result_file, "w") as f:
                 json.dump(results_dict, f)
             logger.info("Wrote results as JSON into %s" % self._result_file)
-        self.exit(self.get_exit_code(results_dict))
-
-    def exit(self, code=0):
         self.close_files()
-        sys.exit(code)
+        return self.get_exit_code(results_dict)
