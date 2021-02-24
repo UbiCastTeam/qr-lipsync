@@ -7,8 +7,6 @@ ENV LANG=en_US.UTF-8
 RUN \
     pacman -Sy && \
     pacman -S archlinux-keyring --noconfirm --noprogressbar --quiet --needed && \
-    pacman -S pacman --noconfirm --noprogressbar --quiet && \
-    pacman-db-upgrade && \
     pacman -Su --noconfirm --noprogressbar --quiet && \
     pacman -S --noconfirm --noprogressbar --quiet --needed \
         git base-devel vim \
