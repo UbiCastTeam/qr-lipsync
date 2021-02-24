@@ -4,6 +4,13 @@ RUN echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen && locale-gen
 
 ENV LANG=en_US.UTF-8
 
+# work around https://gitlab.archlinux.org/archlinux/archlinux-docker/-/issues/56
+RUN patched_glibc=glibc-linux4-2.33-4-x86_64.pkg.tar.zst && \
+    curl -LO "https://repo.archlinuxcn.org/x86_64/$patched_glibc" && \
+    bsdtar -C / -xvf "$patched_glibc" && \
+    echo "IgnorePkg   = glibc" >> /etc/pacman.conf && \
+    rm /glibc-linux4-2.33-4-x86_64.pkg.tar.zst
+
 RUN \
     pacman -Sy && \
     pacman -S archlinux-keyring --noconfirm --noprogressbar --quiet --needed && \
