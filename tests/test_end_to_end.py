@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# Copyright 2017, Florent Thiery
 from unittest import TestCase
 from qrlipsync.analyze import QrLipsyncAnalyzer
 import logging
 import sys
 import os
+import shlex
 import subprocess
 import shutil
 import json
@@ -45,10 +44,12 @@ class AnalyzeTest(TestCase):
         shutil.rmtree('tmptest')
 
     def run_cmd(self, cmd):
-        status, output = subprocess.getstatusoutput('PYTHONPATH=%s %s/bin/%s' % (PROJECTPATH, PROJECTPATH, cmd))
-        if status != 0:
-            print(output)
-        return status, output
+        env2 = dict(os.environ)
+        env2['PYTHONPATH'] = PROJECTPATH
+        p = subprocess.run(shlex.split(f'{os.path.join(PROJECTPATH, "bin")}/{cmd}'), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30, text=True, env=env2)
+        if p.returncode != 0:
+            print(p.stdout)
+        return p.returncode, p.stdout
 
     def test_generate_and_analyze_pcm(self):
         self.assertTrue(self.run_cmd('qr-lipsync-generate.py')[0] == 0)
