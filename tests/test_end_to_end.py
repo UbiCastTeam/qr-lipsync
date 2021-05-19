@@ -46,7 +46,7 @@ class AnalyzeTest(TestCase):
     def run_cmd(self, cmd):
         env2 = dict(os.environ)
         env2['PYTHONPATH'] = PROJECTPATH
-        p = subprocess.run(shlex.split(f'{os.path.join(PROJECTPATH, "bin")}/{cmd}'), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30, text=True, env=env2)
+        p = subprocess.run(shlex.split(f'{os.path.join(PROJECTPATH, "bin")}/{cmd}'), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60, text=True, env=env2)
         if p.returncode != 0:
             print(p.stdout)
         return p.returncode, p.stdout
