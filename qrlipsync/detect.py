@@ -238,7 +238,8 @@ class QrLipsyncDetector:
                 duration = int(Gst.SECOND / self.framerate)
             else:
                 duration = 0
-        self._video_duration = buf.pts + duration
+        segment = pad.get_sticky_event(Gst.EventType.SEGMENT, 0).parse_segment()
+        self._video_duration = segment.to_running_time(Gst.Format.TIME, buf.pts) + duration
         return True
 
     def _on_eos(self, bus, message):
