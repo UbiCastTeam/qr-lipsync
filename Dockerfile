@@ -1,8 +1,8 @@
 FROM archlinux/archlinux
 
-RUN echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen && locale-gen
+ENV IN_QRLIPSYNC 1
 
-ENV LANG=en_US.UTF-8
+ENV LANG=C.UTF-8
 
 RUN \
     pacman -Sy && \
@@ -19,7 +19,8 @@ RUN \
     cd gst-qroverlay && ./autogen.sh && ./configure --prefix=/usr && make install && cd .. && rm -rf gst-qroverlay/ && \
     mkdir src/
 
-COPY . /src/qrlipsync
-WORKDIR /src/qrlipsync
+COPY . /opt/qrlipsync
 
-RUN pip install -e '.[testing]'
+RUN cd /opt/qrlipsync && pip install -e '.[testing]'
+
+WORKDIR /opt/src

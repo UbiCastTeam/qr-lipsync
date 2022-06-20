@@ -1,38 +1,36 @@
-image: registry.ubicast.net/docker/dind-compose
-
-services:
-  - docker:dind
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
 
 stages:
   - build
   - lint
   - test
 
-before_script:
-  - echo $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
-
 
 build:
   stage: build
+  image: registry.ubicast.net/docker/dind-compose
+  services:
+    - docker:dind
   tags:
     - dind
+  before_script:
+    - echo $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
   script:
     - make build
     - make push
-  allow_failure: true
 
 
 lint:
   stage: lint
-  tags:
-    - dind
+  image: $DOCKER_IMAGE_NAME
   script:
     - make lint
 
 
 test:
   stage: test
-  tags:
-    - dind
+  image: $DOCKER_IMAGE_NAME
   script:
     - make test
