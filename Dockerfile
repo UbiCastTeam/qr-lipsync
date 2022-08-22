@@ -1,4 +1,4 @@
-FROM archlinux/archlinux
+FROM archlinux:latest
 
 ENV IN_QRLIPSYNC 1
 
@@ -9,15 +9,10 @@ RUN \
     pacman -S archlinux-keyring --noconfirm --noprogressbar --quiet --needed && \
     pacman -Su --noconfirm --noprogressbar --quiet && \
     pacman -S --noconfirm --noprogressbar --quiet --needed \
-        git base-devel vim \
+        git vim \
         gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav \
-        qrencode zbar ffmpeg \
+        qrencode zbar ffmpeg make \
         python-setuptools python-pip python-gobject gst-python python-numpy
-
-RUN \
-    git clone https://github.com/UbiCastTeam/gst-qroverlay.git && \
-    cd gst-qroverlay && ./autogen.sh && ./configure --prefix=/usr && make install && cd .. && rm -rf gst-qroverlay/ && \
-    mkdir src/
 
 COPY . /opt/qrlipsync
 
