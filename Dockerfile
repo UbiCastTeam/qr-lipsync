@@ -1,18 +1,15 @@
-FROM archlinux/archlinux
+FROM debian:bullseye
 
 ENV IN_QRLIPSYNC 1
 
 ENV LANG=C.UTF-8
 
-RUN \
-    pacman -Sy && \
-    pacman -S archlinux-keyring --noconfirm --noprogressbar --quiet --needed && \
-    pacman -Su --noconfirm --noprogressbar --quiet && \
-    pacman -S --noconfirm --noprogressbar --quiet --needed \
-        git base-devel vim \
-        gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav \
-        qrencode zbar ffmpeg \
-        python-setuptools python-pip python-gobject gst-python python-numpy
+RUN apt-get -q update && apt-get -qy install --no-install-recommends \
+	build-essential vim git autoconf automake pkg-config m4 libtool \
+	gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-libav \
+	libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libqrencode-dev \
+        qrencode libzbar0 ffmpeg \
+        python3-setuptools python3-pip python3-gst-1.0 python3-numpy
 
 RUN \
     git clone https://github.com/UbiCastTeam/gst-qroverlay.git && \
