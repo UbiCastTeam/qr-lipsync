@@ -11,7 +11,7 @@ RUN \
     pacman -S --noconfirm --noprogressbar --quiet --needed \
         git vim \
         gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav \
-        qrencode zbar ffmpeg make \
+        qrencode zbar make \
         python-setuptools python-pip python-gobject gst-python python-numpy
 
 COPY . /opt/qrlipsync

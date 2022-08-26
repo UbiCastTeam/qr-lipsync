@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-import shutil
+import sys
 import time
 import subprocess
 import logging
@@ -10,9 +10,11 @@ from fractions import Fraction
 import gi
 
 gi.require_version("Gst", "1.0")
+gi.require_version("GstPbutils", "1.0")
 # We don't want to use hw accel since it seems to be messing with latency
 os.environ["LIBVA_DRIVER_NAME"] = "fakedriver"
 from gi.repository import Gst  # noqa
+from gi.repository import GstPbutils  # noqa
 
 Gst.init(None)
 
@@ -21,54 +23,46 @@ logger = logging.getLogger("detector")
 QUEUE_OPTS = "max-size-buffers=10 max-size-bytes=0 max-size-time=0"
 
 
-def run_subprocess(cmd, filename):
-    fields = cmd.split(" ")
-    fields.append(filename)
-    result = subprocess.check_output(fields, universal_newlines=True)
-    return result
-
-
 def get_media_info(media_file):
-    result = None
+    uri = Gst.filename_to_uri(os.path.realpath(media_file))
     try:
-        ffprobe = shutil.which("ffprobe")
-    except Exception:
-        # python2
-        from distutils.spawn import find_executable
+        info = GstPbutils.Discoverer.new(10 * Gst.SECOND).discover_uri(uri)
+    except gi.repository.GLib.Error as e:
+        sys.exit("Could not discover file: %s (%s)" % (media_file, e))
 
-        ffprobe = find_executable("ffprobe")
-    if ffprobe:
-        cmd = "ffprobe -v error -select_streams v -show_entries stream=width,height,avg_frame_rate,duration -of default=noprint_wrappers=1 -print_format json"
-        try:
-            cmd_result = run_subprocess(cmd, media_file)
-        except Exception:
-            cmd_result = None
-        if cmd_result:
-            vjres = json.loads(cmd_result)["streams"][0]
-            if not vjres.get("duration"):
-                cmd = "ffprobe -v error -select_streams v -show_format_entry duration -of default=noprint_wrappers=1 -print_format json"
-                cmd_result = run_subprocess(cmd, media_file)
-                vjres["duration"] = json.loads(cmd_result)["format"]["duration"]
-            cmd = "ffprobe -v error -select_streams a -show_entries stream=sample_rate,codec_name -of default=noprint_wrappers=1 -print_format json"
-            cmd_result = run_subprocess(cmd, media_file)
-            ajres = json.loads(cmd_result)["streams"]
-            if ajres:
-                ajres = ajres[0]
-                vjres["sample_rate"] = ajres["sample_rate"]
-                vjres["a_codec"] = ajres["codec_name"]
-            else:
-                logger.error("No audio track found, cannot detect sync")
-            result = vjres
+    try:
+        vinfo = info.get_video_streams()[0]
+    except IndexError:
+        sys.exit("File contains no video stream")
+
+    fps_num = vinfo.get_framerate_num()
+    fps_denom = vinfo.get_framerate_denom()
+    if not fps_num or not fps_denom:
+        fps = None
     else:
-        logger.error("ffprobe is required")
+        fps = Fraction(fps_num, fps_denom)
+
+    result = {
+        'width': vinfo.get_width(),
+        'height': vinfo.get_height(),
+        'framerate': fps,
+        'duration': str(info.get_duration() / Gst.SECOND),
+    }
+
+    try:
+        ainfo = info.get_audio_streams()[0]
+        result["sample_rate"] = ainfo.get_sample_rate()
+        result["a_codec"] = GstPbutils.pb_utils_get_codec_description(ainfo.get_caps()).lower().replace("mpeg-4 aac", "aac")
+    except IndexError:
+        logger.warning("File contains no audio stream, cannot detect sync")
     return result
 
 
 class QrLipsyncDetector:
-    def __init__(self, media_file, result_file, options, mainloop, media_info):
+    def __init__(self, media_file, result_file, options, mainloop):
         self.analyze_returncode = None
         self.options = options
-        self.media_info = media_info
+        self.media_info = get_media_info(media_file)
         self._samplerate = int(self.media_info.get("sample_rate", 0))
         self._media_duration = float(self.media_info["duration"])
         self.mainloop = mainloop
@@ -87,20 +81,20 @@ class QrLipsyncDetector:
         self._tick_count = 0
         spectrum_interval_ms = 3
         self.spectrum_interval_ns = spectrum_interval_ms * Gst.MSECOND
-        framerate = self.media_info.get("avg_frame_rate")
 
-        if framerate is not None:
-            # assume audio ticks are at least 1 video frame long
-            self.framerate = Fraction(self.media_info["avg_frame_rate"])
-            frame_dur_ms = float(1000 / self.framerate)
-        else:
-            # assume 60 fps
-            frame_dur_ms = 1000 / 60
+        framerate = self.media_info.get('framerate')
+        if framerate is None:
+            if options.expected_beep_duration:
+                framerate = 1000 / options.expected_beep_duration
+                logger.warning(f'Unable to guess framerate, using --expected-beep-duration to guess framerate: {framerate}')
+            else:
+                framerate = Fraction(60, 1)
+                logger.warning('Unable to guess framerate, assuming {framerate} until we can extract the real value from the first qrcode')
+        self.framerate = framerate
 
-        if options.expected_beep_duration:
-            self.ticks_count_threshold = int(options.expected_beep_duration / spectrum_interval_ms)
-        else:
-            self.ticks_count_threshold = int(frame_dur_ms / spectrum_interval_ms)
+        # assume audio ticks are at least 1 video frame long
+        frame_dur_ms = float(1000 / self.framerate)
+        self.ticks_count_threshold = int(frame_dur_ms / spectrum_interval_ms)
 
         # FIXME: fdk adds 2048 samples of priming samples (silence) which adds 42ms of latency
         # aacenc adds 1024 samples (21ms)
@@ -136,14 +130,6 @@ class QrLipsyncDetector:
             self._uri_media_file = Gst.filename_to_uri(self._media_file)
         self.pipeline_str = self.get_pipeline(self._uri_media_file)
         self.pipeline = Gst.parse_launch(self.pipeline_str)
-
-    @classmethod
-    def create(qrlipsyncdetector, media_file, result_file, options, mainloop):
-        result = None
-        media_info = get_media_info(media_file)
-        if media_info:
-            result = qrlipsyncdetector(media_file, result_file, options, mainloop, media_info)
-        return result
 
     def exit(self):
         self.pipeline.set_state(Gst.State.NULL)
@@ -304,7 +290,11 @@ class QrLipsyncDetector:
                     real_framerate = float(Fraction(qrcode["FRAMERATE"]))
                     beep_dur = int(1000 / real_framerate)
                     if real_framerate != self.framerate:
-                        logger.warning(f"Input file framerate ({self.framerate}) differs from original sample framerate ({real_framerate}), you should run this with --expected-beep-duration {beep_dur} or beeps won't be detected")
+                        logger.warning(f"Detected real framerate {real_framerate} (different from assumed framerate {self.framerate}, updating values. You should run this with --expected-beep-duration {beep_dur} or (some) beeps may not be detected")
+                        self.framerate = real_framerate
+                        frame_dur_ms = 1000 / real_framerate
+                        spectrum_interval_ms = self.spectrum_interval_ns * 1000
+                        self.ticks_count_threshold = int(frame_dur_ms / spectrum_interval_ms)
                 qrcode["ELEMENTNAME"] = elt_name
                 qrcode["VIDEOTIMESTAMP"] = timestamp
                 if qrcode.get("TICKFREQ"):
@@ -371,6 +361,12 @@ class QrLipsyncDetector:
                     )
                     self._tick_count += 1
                     self.write_line(json.dumps(result))
+
+    def run_subprocess(self, cmd, filename):
+        fields = cmd.split(" ")
+        fields.append(filename)
+        result = subprocess.check_output(fields, universal_newlines=True)
+        return result
 
     def disconnect_probes(self):
         logger.debug("Disconnecting probes")

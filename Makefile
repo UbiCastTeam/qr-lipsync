@@ -35,7 +35,7 @@ ifeq (${VIDEO_FOUND}, 1)
 	@echo "${VIDEO} file not found, exiting, run with VIDEO=${VIDEO}"
 	@exit 1
 else
-	docker run -v ${CURDIR}/${VIDEO}:/opt/src/${VIDEO}:ro ${DOCKER_IMAGE_NAME} qr-lipsync-detect.py /opt/src/${VIDEO} ${ARGS}
+	docker run -v ${CURDIR}:/opt/src/ ${DOCKER_IMAGE_NAME} qr-lipsync-detect.py /opt/src/${VIDEO} ${ARGS}
 endif
 
 generate:
