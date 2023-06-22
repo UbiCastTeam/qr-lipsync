@@ -16,6 +16,6 @@ RUN \
 
 COPY . /opt/qrlipsync
 
-RUN cd /opt/qrlipsync && pip install -e '.[testing]'
+RUN cd /opt/qrlipsync && pip install --break-system-packages -e '.[testing]'
 
 WORKDIR /opt/src
