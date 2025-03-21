@@ -122,43 +122,12 @@ class QrLipsyncGenerator:
         error_correction = 3
         span_buffer = 1
         interval_buffers = self.settings["framerate"]
-        pixel_size = s.get("qr_pix_size", 2)
-        qroverlay_element_name = "debugqroverlay"
-        if not Gst.ElementFactory.find(qroverlay_element_name):
-            qroverlay_element_name = "qroverlay"
+        qrcode_size_percent = s.get("qrcode_size_percent", 50)
         if not self.settings["disable_audio"]:
             data_name = s.get("extra_data_name", "tickfreq")
-            qroverlay_element_name = "debugqroverlay"
-            if not Gst.ElementFactory.find(qroverlay_element_name):
-                qroverlay_element_name = "qroverlay"
-            qroverlay = (
-                '%s x=%s y=%s name=%s qrcode-error-correction=%s extra-data-span-buffers=%s extra-data-interval-buffers=%s extra-data-name=%s extra-data-array="%s" pixel-size=%s'
-                % (
-                    qroverlay_element_name,
-                    x_position,
-                    y_position,
-                    plugin_name,
-                    error_correction,
-                    span_buffer,
-                    interval_buffers,
-                    data_name,
-                    extra_data_array,
-                    pixel_size,
-                )
-            )
+            qroverlay = f'debugqroverlay x={x_position} y={y_position} name={plugin_name} qrcode-error-correction={error_correction} extra-data-span-buffers={span_buffer} extra-data-interval-buffers={interval_buffers} extra-data-name={data_name} extra-data-array="{extra_data_array}" size={qrcode_size_percent}'
         else:
-            qroverlay = (
-                "%s x=%s y=%s name=%s qrcode-error-correction=%s extra-data-span-buffers=%s pixel-size=%s"
-                % (
-                    qroverlay_element_name,
-                    x_position,
-                    y_position,
-                    plugin_name,
-                    error_correction,
-                    span_buffer,
-                    pixel_size,
-                )
-            )
+            qroverlay = f'debugqroverlay x={x_position} y={y_position} name={plugin_name} qrcode-error-correction={error_correction} extra-data-span-buffers={span_buffer} size={qrcode_size_percent}'
 
         return qroverlay
 

@@ -90,7 +90,7 @@ if __name__ == "__main__":
         "width": width,
         "height": height,
         "framerate": options.framerate,
-        "qr_pix_size": 4,
+        "qrcode_size_percent": 70,
         "extra_data_name": "tickfreq",
         "freq_array": (
             240,
