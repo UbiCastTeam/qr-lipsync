@@ -1,6 +1,6 @@
 FROM archlinux:latest
 
-ENV IN_QRLIPSYNC 1
+ENV IN_QRLIPSYNC=1
 
 ENV LANG=C.UTF-8
 
