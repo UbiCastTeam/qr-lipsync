@@ -16,6 +16,6 @@ RUN \
 
 COPY . /opt/qrlipsync
 
-RUN cd /opt/qrlipsync && pip install --break-system-packages -e '.[testing]'
+RUN cd /opt/qrlipsync && pip install --break-system-packages --use-pep517 -e '.[testing]'
 
 WORKDIR /opt/src
