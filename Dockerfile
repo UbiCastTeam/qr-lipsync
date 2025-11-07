@@ -9,13 +9,17 @@ RUN \
     pacman -S archlinux-keyring --noconfirm --noprogressbar --quiet --needed && \
     pacman -Su --noconfirm --noprogressbar --quiet && \
     pacman -S --noconfirm --noprogressbar --quiet --needed \
-        git vim \
+        git vim qrencode zbar make \
         gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav \
-        qrencode zbar make \
-        python-setuptools python-pip python-gobject gst-python python-numpy
+        python-virtualenv python-gobject gst-python
 
-COPY . /opt/qrlipsync
+RUN python -m venv /opt/venv --system-site-packages
+ENV PATH="/opt/venv/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-RUN cd /opt/qrlipsync && pip install --break-system-packages --use-pep517 -e '.[testing]'
+ARG DOCKER_WORK_DIR
+RUN mkdir -p ${DOCKER_WORK_DIR}
+WORKDIR ${DOCKER_WORK_DIR}
 
-WORKDIR /opt/src
+COPY . .
+RUN pip install -e '.[dev]'

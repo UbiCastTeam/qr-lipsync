@@ -1,9 +1,5 @@
-# Byte-compiled
 __pycache__/
-*.py[cod]
-
-# C extensions
-*.so
+*.pyc
 
 # Distribution / packaging
 .Python
@@ -17,27 +13,10 @@ eggs/
 .installed.cfg
 *.egg
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
 # Unit test / coverage reports
-.cache
 .coverage*
+coverage*
+htmlcov
+report.xml
+.mypy_cache
 .pytest_cache
-coverage.xml
-
-# Translations
-*.pot
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
