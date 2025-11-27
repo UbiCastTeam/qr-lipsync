@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import time
 import logging
 import os
@@ -7,7 +6,7 @@ import statistics
 import fractions
 import numpy as np
 
-logger = logging.getLogger("qr-lipsync-analyze")
+logger = logging.getLogger(__name__)
 
 SECOND = 1000000000
 NAN = "could not measure"
@@ -135,7 +134,7 @@ class QrLipsyncAnalyzer:
             logger.warning("No expected qrcode %s detected" % self.expected_qrcode_name)
             if self.qrcode_names:
                 logger.info(
-                    "Found unexpected qrcode names %s, you may want to run qr-lipsync-analyze.py with -q %s"
+                    "Found unexpected qrcode names %s, you may want to run qr-lipsync-analyze with -q %s"
                     % (",".join(self.qrcode_names), self.qrcode_names[0])
                 )
             logger.error("Exiting with error")

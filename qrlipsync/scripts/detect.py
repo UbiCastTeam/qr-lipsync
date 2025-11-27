@@ -1,20 +1,20 @@
 #!/usr/bin/env python
+import argparse
 import os
 import sys
 import logging
 from gi.repository import GLib
 from qrlipsync.detect import QrLipsyncDetector
 
-logger = logging.getLogger("timing_analyzer_bin")
+logger = logging.getLogger(__name__)
 
 
-if __name__ == "__main__":
-    import argparse
-
+def main():
     parser = argparse.ArgumentParser(
         description="Generate videos suitable for measuring lipsync with qrcodes",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+
     parser.add_argument(
         "input_file",
         help="filename of video to analyze"
@@ -86,11 +86,9 @@ if __name__ == "__main__":
 
     options = parser.parse_args()
 
-    verbosity = getattr(logging, "DEBUG" if options.verbosity else "INFO")
-
     logging.basicConfig(
-        level=verbosity,
-        format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        level=logging.DEBUG if options.verbosity else logging.INFO,
         stream=sys.stderr,
     )
 
@@ -113,4 +111,8 @@ if __name__ == "__main__":
                 exit_code = d.analyze_returncode
     else:
         logger.error("File %s not found" % media_file)
-    sys.exit(exit_code)
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

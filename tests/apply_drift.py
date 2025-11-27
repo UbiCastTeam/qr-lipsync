@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# Copyright 2017, Florent Thiery
-
 import sys
 import json
 
 if __name__ == '__main__':
-
     input_file = sys.argv[1]
     output_file = sys.argv[2]
 

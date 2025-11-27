@@ -23,25 +23,19 @@ sudo apt install gstreamer1.0-plugins-{base,good,bad,ugly} gstreamer1.0-libav py
 ```
 
 ```
-sudo python setup.py install
+sudo pip install .
 ```
 
 Alternatively, you can run without installing with:
 ```
-PATH=$PATH:bin PYTHONPATH=. qr-lipsync-generate.py
-PATH=$PATH:bin PYTHONPATH=. qr-lipsync-detect.py cam1-qrcode-blue-30.qt
-```
-
-Or even
-```
-sudo ln -s `pwd`/bin/*.py /usr/local/bin
-sudo ln -s `pwd`/qrlipsync `python -c "import site; print(site.getsitepackages()[0])"`
+PATH=$PATH:bin PYTHONPATH=. python3 qrlipsync/scripts/generate.py
+PATH=$PATH:bin PYTHONPATH=. python3 qrlipsync/scripts/detect.py cam1-qrcode-blue-30.qt
 ```
 
 ## Running tests
 
 ```
-python setup.py test
+make test
 ```
 
 ## Usage
@@ -87,8 +81,8 @@ Custom arguments can be provided with:
 
 ```
 make analyze ARGS="-h"
-usage: qr-lipsync-detect.py [-h] [-a AREA] [-s] [-d DOWNSCALE_WIDTH] [-p] [-v]
-                            input_file
+usage: qr-lipsync-detect [-h] [-a AREA] [-s] [-d DOWNSCALE_WIDTH] [-p] [-v]
+                         input_file
 
 positional arguments:
   input_file            filename of video to analyze
@@ -108,25 +102,25 @@ optional arguments:
   -v, --verbosity       increase output verbosity (default: False)
 ```
 
-### qr-lipsync-generate.py
+### qr-lipsync-generate
 
 Will build a cam1-qrcode.qt reference video
 
-```$ ./qr-lipsync-generate.py```
+```$ ./qr-lipsync-generate```
 
 ![Screenshot of reference video](https://raw.githubusercontent.com/UbiCastTeam/qr-lipsync/master/sample.png)
 
-### qr-lipsync-detect.py
+### qr-lipsync-detect
 
 Will extract metadata and write it into the cam1-qrcode_data.txt file. Will run analysis too.
 
-```$ ./qr-lipsync-detect.py cam1-qrcode.qt```
+```$ ./qr-lipsync-detect cam1-qrcode.qt```
 
-### qr-lipsync-analyze.py
+### qr-lipsync-analyze
 
 Analyze results without re-detecting.
 
-```$ ./qr-lipsync-analyze.py cam1-qrcode_data.txt```
+```$ ./qr-lipsync-analyze cam1-qrcode_data.txt```
 
 Sample output:
 

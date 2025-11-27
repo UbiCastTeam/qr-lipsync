@@ -40,8 +40,8 @@ ifeq (${VIDEO_FOUND}, 1)
 	@echo "${VIDEO} file not found, exiting, run with VIDEO=${VIDEO}"
 	@exit 1
 else
-	${DOCKER_RUN} qr-lipsync-detect.py ${DOCKER_WORK_DIR}/${VIDEO} ${ARGS}
+	${DOCKER_RUN} qr-lipsync-detect ${DOCKER_WORK_DIR}/${VIDEO} ${ARGS}
 endif
 
 generate:
-	${DOCKER_RUN} qr-lipsync-generate.py --output-dir ${DOCKER_WORK_DIR} ${ARGS}
+	${DOCKER_RUN} qr-lipsync-generate --output-dir ${DOCKER_WORK_DIR} ${ARGS}

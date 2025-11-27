@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import os
 import sys
 import time
@@ -18,7 +17,7 @@ from gi.repository import GstPbutils  # noqa
 
 Gst.init(None)
 
-logger = logging.getLogger("detector")
+logger = logging.getLogger(__name__)
 
 QUEUE_OPTS = "max-size-buffers=10 max-size-bytes=0 max-size-time=0"
 
@@ -250,7 +249,15 @@ class QrLipsyncDetector:
         self._result_file.close()
         logger.info("Wrote file %s" % self._result_filename)
         if not self.options.skip_results:
-            self.analyze_returncode = os.WEXITSTATUS(os.system("qr-lipsync-analyze.py %s -q %s --desync-threshold-frames %s" % (self._result_filename, self.options.qrcode_name, self.options.desync_threshold_frames)))
+            proc = subprocess.run([
+                "qr-lipsync-analyze",
+                str(self._result_filename),
+                "-q",
+                str(self.options.qrcode_name),
+                "--desync-threshold-frames",
+                str(self.options.desync_threshold_frames),
+            ])
+            self.analyze_returncode = proc.returncode
         self.exit()
 
     def _on_message(self, bus, message):

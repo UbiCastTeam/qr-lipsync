@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import signal
 import sys
 import time
@@ -11,7 +10,7 @@ from gi.repository import GObject, Gst # noqa
 
 Gst.init(None)
 
-logger = logging.getLogger("qrcode_generator")
+logger = logging.getLogger(__name__)
 
 
 class QrLipsyncGenerator:

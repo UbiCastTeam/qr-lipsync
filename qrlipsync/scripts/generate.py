@@ -6,10 +6,10 @@ import logging
 from gi.repository import GLib
 from qrlipsync.generate import QrLipsyncGenerator
 
-logger = logging.getLogger("qrcode_generator")
+logger = logging.getLogger(__name__)
 
-if __name__ == "__main__":
 
+def main():
     parser = argparse.ArgumentParser(
         description="Generate videos suitable for measuring lipsync with qrcodes",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -65,10 +65,9 @@ if __name__ == "__main__":
 
     options = parser.parse_args()
 
-    verbosity = getattr(logging, "DEBUG" if options.verbosity else "INFO")
     logging.basicConfig(
-        level=verbosity,
-        format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        level=logging.DEBUG if options.verbosity else logging.INFO,
         stream=sys.stderr,
     )
 
@@ -78,7 +77,7 @@ if __name__ == "__main__":
         width, height = options.size.split("x")
     except ValueError:
         logger.error('Size must be in the following format: "640x360"')
-        sys.exit(1)
+        return 1
 
     settings = {
         "disable_audio": options.disable_audio,
@@ -181,3 +180,8 @@ if __name__ == "__main__":
     qr_gen = QrLipsyncGenerator(settings, ml)
     GLib.idle_add(qr_gen.start)
     ml.run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

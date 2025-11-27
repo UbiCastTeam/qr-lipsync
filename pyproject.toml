@@ -31,16 +31,16 @@ dev = [
   "pytest-cov",
 ]
 
+[project.scripts]
+qr-lipsync-analyze = "qrlipsync.scripts.analyze:main"
+qr-lipsync-detect = "qrlipsync.scripts.detect:main"
+qr-lipsync-generate = "qrlipsync.scripts.generate:main"
+
 [project.urls]
 Repository = "https://github.com/UbiCastTeam/qr-lipsync"
 
 [tool.setuptools]
-packages = ["qrlipsync"]
-script-files = [
-  "bin/qr-lipsync-analyze.py",
-  "bin/qr-lipsync-detect.py",
-  "bin/qr-lipsync-generate.py",
-]
+packages = ["qrlipsync", "qrlipsync.scripts"]
 include-package-data = false
 
 [tool.pytest.ini_options]
@@ -51,4 +51,6 @@ log_level = "DEBUG"
 testpaths = "tests/"
 
 [tool.coverage.run]
+patch = ["subprocess"]
+relative_files = true
 source_dirs = ["qrlipsync"]

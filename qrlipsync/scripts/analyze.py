@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import logging
 import argparse
 import os
@@ -7,11 +6,12 @@ import signal
 import sys
 from qrlipsync.analyze import QrLipsyncAnalyzer
 
-logger = logging.getLogger("qr-lipsync-analyze-bin")
+logger = logging.getLogger(__name__)
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(
-        description="Process QrCode and spectrum data file generated with qr-lipsync-detect.py"
+        description="Process QrCode and spectrum data file generated with qr-lipsync-detect"
     )
 
     parser.add_argument("input_file", help="filename of raw QrCode and spectrum data")
@@ -60,10 +60,9 @@ if __name__ == "__main__":
 
     options = parser.parse_args(sys.argv[1:])
 
-    level = "DEBUG" if options.verbosity else "INFO"
     logging.basicConfig(
-        level=getattr(logging, level),
-        format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        level=logging.DEBUG if options.verbosity else logging.INFO,
         stream=sys.stderr,
     )
 
@@ -78,4 +77,8 @@ if __name__ == "__main__":
     else:
         logger.error("File %s not found" % options.input_file)
         exit_code = 1
-    sys.exit(exit_code)
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())
