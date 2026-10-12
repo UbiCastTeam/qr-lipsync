@@ -9,7 +9,7 @@ RUN \
     pacman -S archlinux-keyring --noconfirm --noprogressbar --quiet --needed && \
     pacman -Su --noconfirm --noprogressbar --quiet && \
     pacman -S --noconfirm --noprogressbar --quiet --needed \
-        git vim qrencode zbar make \
+        git vim qrencode zbar just make \
         gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav \
         python-virtualenv python-gobject gst-python
 
