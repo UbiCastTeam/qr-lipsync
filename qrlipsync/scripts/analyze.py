@@ -74,6 +74,9 @@ def main():
         a = QrLipsyncAnalyzer(input_file, options)
         if a.start():
             exit_code = a.show_summary_and_exit()
+        else:
+            # start() already logged "Exiting with error": do not exit 0
+            exit_code = 1
     else:
         logger.error("File %s not found" % options.input_file)
         exit_code = 1
